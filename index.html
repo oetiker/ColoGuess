@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#111111">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ColoGuess">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>ColoGuess</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #111;
+    color: #eee;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  #app {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .screen {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+  }
+  .screen.active { display: flex; }
+
+  /* Start screen */
+  #start {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+  }
+  #start h1 {
+    font-size: 2.5rem;
+    margin-bottom: 8px;
+    background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb, #1dd1a1);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  #start p {
+    opacity: 0.8;
+    margin-bottom: 32px;
+    max-width: 320px;
+    line-height: 1.5;
+  }
+  button.primary {
+    background: #fff;
+    color: #111;
+    border: none;
+    padding: 16px 32px;
+    border-radius: 999px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(255,255,255,0.2);
+    transition: transform 0.1s;
+  }
+  button.primary:active { transform: scale(0.96); }
+
+  /* Show color screen */
+  #show {
+    align-items: center;
+    justify-content: center;
+  }
+  #show .timer {
+    position: absolute;
+    top: env(safe-area-inset-top, 20px);
+    right: 20px;
+    background: rgba(0,0,0,0.4);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 1.5rem;
+    font-weight: 600;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 2;
+  }
+  #show .label {
+    position: absolute;
+    top: env(safe-area-inset-top, 20px);
+    left: 20px;
+    background: rgba(0,0,0,0.4);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 2;
+  }
+
+  /* Guess screen */
+  #guess {
+    flex-direction: column;
+  }
+  .preview {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .preview-block {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .preview-block .tag {
+    background: rgba(0,0,0,0.45);
+    color: #fff;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .controls {
+    background: #1a1a1a;
+    padding: 16px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid #2a2a2a;
+  }
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .slider-row:last-of-type { margin-bottom: 16px; }
+  .slider-row label {
+    width: 22px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    opacity: 0.7;
+  }
+  .slider-row .val {
+    width: 42px;
+    text-align: right;
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.7;
+  }
+  input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 28px;
+    background: transparent;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 16px;
+    border-radius: 8px;
+    background: var(--track, #444);
+  }
+  input[type="range"]::-moz-range-track {
+    height: 16px;
+    border-radius: 8px;
+    background: var(--track, #444);
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid #111;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    margin-top: -5px;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid #111;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+
+  #hue-slider { --track: linear-gradient(to right,
+    hsl(0,100%,50%), hsl(60,100%,50%), hsl(120,100%,50%),
+    hsl(180,100%,50%), hsl(240,100%,50%), hsl(300,100%,50%), hsl(360,100%,50%)); }
+
+  .actions {
+    display: flex;
+    gap: 12px;
+  }
+  .actions button {
+    flex: 1;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .actions .submit {
+    background: #fff;
+    color: #111;
+  }
+  .actions .submit:active { background: #ddd; }
+
+  /* Result screen */
+  #result {
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+  }
+  #result .score {
+    font-size: 4rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  #result .label-score {
+    opacity: 0.7;
+    margin-bottom: 24px;
+    font-size: 0.95rem;
+  }
+  #result .swatches {
+    display: flex;
+    width: 100%;
+    max-width: 360px;
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 24px;
+    height: 120px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  #result .swatches > div {
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 12px;
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.9);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    font-weight: 500;
+  }
+  #result .details {
+    font-size: 0.85rem;
+    opacity: 0.6;
+    margin-bottom: 28px;
+    line-height: 1.6;
+  }
+  #result .actions-result {
+    display: flex;
+    gap: 12px;
+  }
+  #result .actions-result button {
+    padding: 14px 24px;
+    border: none;
+    border-radius: 999px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #result .play-again {
+    background: #fff;
+    color: #111;
+  }
+  #result .home {
+    background: #2a2a2a;
+    color: #eee;
+  }
+
+  .grade {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 24px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <section id="start" class="screen active">
+    <h1>ColoGuess</h1>
+    <p>A color flashes for 5 seconds. Recreate it using the hue, saturation and lightness sliders.</p>
+    <button class="primary" id="btn-start">Start</button>
+  </section>
+
+  <section id="show" class="screen">
+    <div class="label">Memorize</div>
+    <div class="timer" id="timer">5</div>
+  </section>
+
+  <section id="guess" class="screen">
+    <div class="preview">
+      <div class="preview-block" id="preview-current">
+        <div class="tag">Your guess</div>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="slider-row">
+        <label>H</label>
+        <input type="range" id="hue-slider" min="0" max="360" value="180">
+        <div class="val" id="hue-val">180</div>
+      </div>
+      <div class="slider-row">
+        <label>S</label>
+        <input type="range" id="sat-slider" min="0" max="100" value="50">
+        <div class="val" id="sat-val">50</div>
+      </div>
+      <div class="slider-row">
+        <label>L</label>
+        <input type="range" id="lit-slider" min="0" max="100" value="50">
+        <div class="val" id="lit-val">50</div>
+      </div>
+      <div class="actions">
+        <button class="submit" id="btn-submit">Submit</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="result" class="screen">
+    <div class="score" id="score">0</div>
+    <div class="label-score">out of 100</div>
+    <div class="grade" id="grade"></div>
+    <div class="swatches">
+      <div id="swatch-target"><span>target</span></div>
+      <div id="swatch-guess"><span>yours</span></div>
+    </div>
+    <div class="details" id="details"></div>
+    <div class="actions-result">
+      <button class="home" id="btn-home">Home</button>
+      <button class="play-again" id="btn-again">Play again</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  const screens = {
+    start: document.getElementById('start'),
+    show: document.getElementById('show'),
+    guess: document.getElementById('guess'),
+    result: document.getElementById('result'),
+  };
+  const showEl = screens.show;
+  const timerEl = document.getElementById('timer');
+  const previewCurrent = document.getElementById('preview-current');
+  const hueSlider = document.getElementById('hue-slider');
+  const satSlider = document.getElementById('sat-slider');
+  const litSlider = document.getElementById('lit-slider');
+  const hueVal = document.getElementById('hue-val');
+  const satVal = document.getElementById('sat-val');
+  const litVal = document.getElementById('lit-val');
+  const scoreEl = document.getElementById('score');
+  const gradeEl = document.getElementById('grade');
+  const swatchTarget = document.getElementById('swatch-target');
+  const swatchGuess = document.getElementById('swatch-guess');
+  const detailsEl = document.getElementById('details');
+
+  let target = { h: 0, s: 0, l: 0 };
+  let countdownId = null;
+
+  function show(screenName) {
+    Object.values(screens).forEach(s => s.classList.remove('active'));
+    screens[screenName].classList.add('active');
+  }
+
+  function hsl(c) { return `hsl(${c.h}, ${c.s}%, ${c.l}%)`; }
+
+  function randomColor() {
+    return {
+      h: Math.floor(Math.random() * 361),
+      s: 30 + Math.floor(Math.random() * 71),
+      l: 25 + Math.floor(Math.random() * 51),
+    };
+  }
+
+  function startGame() {
+    target = randomColor();
+    showEl.style.background = hsl(target);
+    let remaining = 5;
+    timerEl.textContent = remaining;
+    show('show');
+    if (countdownId) clearInterval(countdownId);
+    countdownId = setInterval(() => {
+      remaining -= 1;
+      timerEl.textContent = remaining;
+      if (remaining <= 0) {
+        clearInterval(countdownId);
+        countdownId = null;
+        goToGuess();
+      }
+    }, 1000);
+  }
+
+  function goToGuess() {
+    hueSlider.value = 180;
+    satSlider.value = 50;
+    litSlider.value = 50;
+    updateGuess();
+    show('guess');
+  }
+
+  function currentGuess() {
+    return {
+      h: parseInt(hueSlider.value, 10),
+      s: parseInt(satSlider.value, 10),
+      l: parseInt(litSlider.value, 10),
+    };
+  }
+
+  function updateGuess() {
+    const g = currentGuess();
+    hueVal.textContent = g.h;
+    satVal.textContent = g.s;
+    litVal.textContent = g.l;
+    previewCurrent.style.background = hsl(g);
+    satSlider.style.setProperty('--track',
+      `linear-gradient(to right, hsl(${g.h}, 0%, ${g.l}%), hsl(${g.h}, 100%, ${g.l}%))`);
+    litSlider.style.setProperty('--track',
+      `linear-gradient(to right, hsl(${g.h}, ${g.s}%, 0%), hsl(${g.h}, ${g.s}%, 50%), hsl(${g.h}, ${g.s}%, 100%))`);
+  }
+
+  function hslToRgb(h, s, l) {
+    s /= 100; l /= 100;
+    const k = n => (n + h / 30) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
+  }
+
+  function computeScore(a, b) {
+    const [r1, g1, b1] = hslToRgb(a.h, a.s, a.l);
+    const [r2, g2, b2] = hslToRgb(b.h, b.s, b.l);
+    const dr = r1 - r2, dg = g1 - g2, db = b1 - b2;
+    const dist = Math.sqrt(dr*dr + dg*dg + db*db);
+    const maxDist = Math.sqrt(3) * 255;
+    const score = Math.max(0, 100 - (dist / maxDist) * 200);
+    return Math.round(score);
+  }
+
+  function gradeFor(score) {
+    if (score >= 95) return { text: 'Pixel perfect', bg: '#1dd1a1', color: '#062' };
+    if (score >= 85) return { text: 'Excellent', bg: '#48dbfb', color: '#024' };
+    if (score >= 70) return { text: 'Good', bg: '#feca57', color: '#420' };
+    if (score >= 50) return { text: 'Close', bg: '#ff9f43', color: '#420' };
+    return { text: 'Off', bg: '#ff6b6b', color: '#400' };
+  }
+
+  function submitGuess() {
+    const g = currentGuess();
+    const score = computeScore(target, g);
+    scoreEl.textContent = score;
+    const gr = gradeFor(score);
+    gradeEl.textContent = gr.text;
+    gradeEl.style.background = gr.bg;
+    gradeEl.style.color = gr.color;
+    swatchTarget.style.background = hsl(target);
+    swatchGuess.style.background = hsl(g);
+    detailsEl.innerHTML =
+      `Target: H ${target.h}, S ${target.s}, L ${target.l}<br>` +
+      `Yours: H ${g.h}, S ${g.s}, L ${g.l}`;
+    show('result');
+  }
+
+  document.getElementById('btn-start').addEventListener('click', startGame);
+  document.getElementById('btn-submit').addEventListener('click', submitGuess);
+  document.getElementById('btn-again').addEventListener('click', startGame);
+  document.getElementById('btn-home').addEventListener('click', () => show('start'));
+
+  [hueSlider, satSlider, litSlider].forEach(s =>
+    s.addEventListener('input', updateGuess));
+
+  updateGuess();
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+})();
+</script>
+</body>
+</html>
