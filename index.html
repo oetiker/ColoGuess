@@ -38,14 +38,13 @@
   }
   .screen.active { display: flex; }
 
-  /* Generic centered screens */
   .centered {
     align-items: center;
     justify-content: center;
     text-align: center;
     padding: 24px;
   }
-  #start, #mpname, #mphost, #mpjoin {
+  #start, #mpname, #mphost, #mpjoin, #qrshow, #qrscan {
     background: linear-gradient(135deg, #1a1a2e, #16213e);
   }
   h1 {
@@ -56,10 +55,7 @@
     background-clip: text;
     color: transparent;
   }
-  h2 {
-    font-size: 1.6rem;
-    margin-bottom: 8px;
-  }
+  h2 { font-size: 1.6rem; margin-bottom: 8px; }
   .sub {
     opacity: 0.8;
     margin-bottom: 28px;
@@ -105,7 +101,6 @@
     text-decoration: underline;
   }
 
-  /* Chirp type segmented control */
   .seg {
     display: flex;
     margin-top: 24px;
@@ -118,16 +113,13 @@
     border: none;
     background: transparent;
     color: #aaa;
-    padding: 8px 18px;
+    padding: 8px 14px;
     border-radius: 999px;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
   }
-  .seg button.seg-on {
-    background: #fff;
-    color: #111;
-  }
+  .seg button.seg-on { background: #fff; color: #111; }
   .seg-label {
     font-size: 0.75rem;
     opacity: 0.55;
@@ -136,12 +128,7 @@
     letter-spacing: 0.5px;
   }
 
-  /* Text input */
-  .field {
-    width: 100%;
-    max-width: 300px;
-    margin-bottom: 8px;
-  }
+  .field { width: 100%; max-width: 300px; margin-bottom: 8px; }
   .field label {
     display: block;
     font-size: 0.8rem;
@@ -164,7 +151,6 @@
   }
   input[type="text"]:focus { outline: 2px solid #48dbfb; }
 
-  /* Stepper */
   .stepper-row {
     width: 100%;
     max-width: 300px;
@@ -173,10 +159,7 @@
     justify-content: space-between;
     margin-bottom: 16px;
   }
-  .stepper-row .s-label {
-    font-size: 0.95rem;
-    opacity: 0.85;
-  }
+  .stepper-row .s-label { font-size: 0.95rem; opacity: 0.85; }
   .stepper {
     display: flex;
     align-items: center;
@@ -215,12 +198,7 @@
   }
   .status.error { color: #ff6b6b; opacity: 1; }
 
-  /* Listening animation */
-  .dots {
-    display: flex;
-    gap: 10px;
-    margin: 28px 0;
-  }
+  .dots { display: flex; gap: 10px; margin: 28px 0; }
   .dots span {
     width: 14px;
     height: 14px;
@@ -235,15 +213,39 @@
     50% { transform: scale(1); opacity: 1; }
   }
 
-  /* Show color screen */
-  #show {
+  /* QR display + scanner */
+  #qr-box {
+    background: #fff;
+    padding: 16px;
+    border-radius: 16px;
+    width: 74vw;
+    max-width: 320px;
+    height: 74vw;
+    max-height: 320px;
+    display: flex;
     align-items: center;
     justify-content: center;
+    margin-bottom: 18px;
   }
+  #qr-box svg { width: 100%; height: 100%; display: block; }
+  .scan-frame {
+    width: 74vw;
+    max-width: 320px;
+    height: 74vw;
+    max-height: 320px;
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 14px;
+    background: #000;
+  }
+  .scan-frame video { width: 100%; height: 100%; object-fit: cover; }
+
+  /* Show color screen */
+  #show { align-items: center; justify-content: center; }
   #show .timer {
     position: absolute;
-    top: env(safe-area-inset-top, 20px);
-    right: 20px;
+    top: calc(env(safe-area-inset-top, 0px) + 18px);
+    right: calc(env(safe-area-inset-right, 0px) + 18px);
     background: rgba(0,0,0,0.4);
     color: #fff;
     padding: 8px 16px;
@@ -256,8 +258,8 @@
   }
   #show .label {
     position: absolute;
-    top: env(safe-area-inset-top, 20px);
-    left: 20px;
+    top: calc(env(safe-area-inset-top, 0px) + 18px);
+    left: calc(env(safe-area-inset-left, 0px) + 18px);
     background: rgba(0,0,0,0.4);
     color: #fff;
     padding: 8px 16px;
@@ -270,12 +272,7 @@
 
   /* Guess screen */
   #guess { flex-direction: column; }
-  .preview {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
+  .preview { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   .preview-block {
     flex: 1;
     position: relative;
@@ -298,19 +295,9 @@
     padding: 16px 20px calc(20px + env(safe-area-inset-bottom, 0px));
     border-top: 1px solid #2a2a2a;
   }
-  .slider-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
-  }
+  .slider-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
   .slider-row:last-of-type { margin-bottom: 16px; }
-  .slider-row label {
-    width: 22px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    opacity: 0.7;
-  }
+  .slider-row label { width: 22px; font-size: 0.85rem; font-weight: 600; opacity: 0.7; }
   .slider-row .val {
     width: 42px;
     text-align: right;
@@ -327,14 +314,10 @@
     cursor: pointer;
   }
   input[type="range"]::-webkit-slider-runnable-track {
-    height: 16px;
-    border-radius: 8px;
-    background: var(--track, #444);
+    height: 16px; border-radius: 8px; background: var(--track, #444);
   }
   input[type="range"]::-moz-range-track {
-    height: 16px;
-    border-radius: 8px;
-    background: var(--track, #444);
+    height: 16px; border-radius: 8px; background: var(--track, #444);
   }
   input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -376,12 +359,7 @@
   #result { align-items: center; justify-content: center; padding: 24px; text-align: center; }
   #result .score { font-size: 4rem; font-weight: 700; margin-bottom: 8px; }
   #result .label-score { opacity: 0.7; margin-bottom: 16px; font-size: 0.95rem; }
-  #mp-progress {
-    font-size: 0.85rem;
-    opacity: 0.8;
-    margin-bottom: 16px;
-    color: #48dbfb;
-  }
+  #mp-progress { font-size: 0.85rem; opacity: 0.8; margin-bottom: 16px; color: #48dbfb; }
   #result .swatches {
     display: flex;
     width: 100%;
@@ -433,8 +411,8 @@
   }
 
   /* Leaderboard */
-  #board { padding: env(safe-area-inset-top, 20px) 20px calc(20px + env(safe-area-inset-bottom, 0px)); }
-  .board-head { text-align: center; margin: 12px 0 8px; }
+  #board { padding: calc(env(safe-area-inset-top, 0px) + 18px) 20px calc(20px + env(safe-area-inset-bottom, 0px)); }
+  .board-head { text-align: center; margin-bottom: 8px; }
   #board-count { font-size: 0.9rem; opacity: 0.7; }
   #board-list {
     flex: 1;
@@ -452,13 +430,7 @@
     margin-bottom: 8px;
   }
   .board-row.me { outline: 2px solid #48dbfb; }
-  .board-row.pending { opacity: 0.45; }
-  .board-rank {
-    font-size: 1.2rem;
-    font-weight: 700;
-    width: 30px;
-    text-align: center;
-  }
+  .board-rank { font-size: 1.2rem; font-weight: 700; width: 30px; text-align: center; }
   .board-info { flex: 1; min-width: 0; }
   .board-name {
     font-size: 1rem;
@@ -473,16 +445,14 @@
     margin-top: 2px;
     font-variant-numeric: tabular-nums;
   }
-  .board-total {
-    font-size: 1.5rem;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-  }
+  .board-total { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  #board-actions { display: flex; flex-direction: column; gap: 8px; }
+  #board-actions button { margin: 0; max-width: none; }
   #board-status {
     text-align: center;
     font-size: 0.85rem;
     opacity: 0.7;
-    margin-bottom: 12px;
+    margin: 12px 0;
     min-height: 1.2em;
   }
   #board .primary { margin: 0 auto; }
@@ -496,16 +466,17 @@
     <p class="sub">A color flashes briefly. Recreate it with the hue, saturation and lightness sliders.</p>
     <button class="primary" id="btn-mp">Play with friends</button>
     <button class="secondary" id="btn-solo">Solo practice</button>
-    <div class="seg-label">Sound transfer</div>
-    <div class="seg" id="chirp-seg">
+    <div class="seg-label">How phones connect</div>
+    <div class="seg" id="mode-seg">
       <button data-v="audible">Audible</button>
       <button data-v="ultrasound">Ultrasonic</button>
+      <button data-v="qr">QR codes</button>
     </div>
   </section>
 
   <section id="mpname" class="screen centered">
-    <h2>Play with friends</h2>
-    <p class="sub">Everyone gets the same colors. Phones share the game over sound &mdash; no internet needed.</p>
+    <h2 id="mpname-title">Play with friends</h2>
+    <p class="sub" id="mpname-sub">Everyone gets the same colors. Phones share the game over sound or QR codes &mdash; no internet needed.</p>
     <div class="field">
       <label for="name-input">Your name</label>
       <input type="text" id="name-input" maxlength="10" placeholder="e.g. Alex" autocomplete="off">
@@ -517,15 +488,7 @@
 
   <section id="mphost" class="screen centered">
     <h2>Host a game</h2>
-    <p class="sub">Set up the game, then broadcast it. Make sure other phones are listening first.</p>
-    <div class="stepper-row">
-      <span class="s-label">Players</span>
-      <div class="stepper" data-target="players">
-        <button class="step-btn" data-act="dec">&minus;</button>
-        <span class="step-val" id="players-val">4</span>
-        <button class="step-btn" data-act="inc">+</button>
-      </div>
-    </div>
+    <p class="sub" id="host-sub">Set the number of rounds, then share the game with the other players.</p>
     <div class="stepper-row">
       <span class="s-label">Rounds</span>
       <div class="stepper" data-target="rounds">
@@ -534,7 +497,7 @@
         <button class="step-btn" data-act="inc">+</button>
       </div>
     </div>
-    <button class="primary" id="btn-broadcast">Broadcast &amp; start</button>
+    <button class="primary" id="btn-broadcast">Share the game</button>
     <div class="status" id="host-status"></div>
     <button class="link-btn" data-home="1">Back</button>
   </section>
@@ -542,9 +505,24 @@
   <section id="mpjoin" class="screen centered">
     <h2>Joining a game</h2>
     <div class="dots"><span></span><span></span><span></span></div>
-    <p class="sub" id="join-text">Listening for the host&hellip; keep this phone near the host's phone.</p>
+    <p class="sub">Listening for the host&hellip; keep this phone near the host's phone.</p>
     <div class="status" id="join-status"></div>
     <button class="link-btn" data-home="1">Cancel</button>
+  </section>
+
+  <section id="qrshow" class="screen centered">
+    <h2 id="qr-title">Game code</h2>
+    <div id="qr-box"></div>
+    <p class="sub" id="qr-caption"></p>
+    <button class="primary" id="qr-done">Done</button>
+  </section>
+
+  <section id="qrscan" class="screen centered">
+    <h2 id="scan-title">Scan</h2>
+    <div class="scan-frame"><video id="scan-video" playsinline muted></video></div>
+    <p class="sub" id="scan-hint">Point the camera at the other phone's QR code.</p>
+    <div class="status" id="scan-status"></div>
+    <button class="secondary" id="scan-done">Done</button>
   </section>
 
   <section id="show" class="screen">
@@ -599,6 +577,7 @@
       <div id="board-count">&mdash;</div>
     </div>
     <div id="board-list"></div>
+    <div id="board-actions"></div>
     <div id="board-status"></div>
     <button class="primary" id="btn-board-home">Home</button>
   </section>
@@ -606,6 +585,8 @@
 </div>
 
 <script src="ggwave.js"></script>
+<script src="qrcode.js"></script>
+<script src="jsqr.js"></script>
 <script>
 (function() {
   'use strict';
@@ -642,6 +623,18 @@
   function hsl(c) { return `hsl(${c.h}, ${c.s}%, ${c.l}%)`; }
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
   function randId() { return Math.floor(Math.random() * 46656).toString(36).padStart(3, '0'); }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"]/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  }
+  function mkButton(parent, label, cls, fn) {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.className = cls;
+    b.addEventListener('click', fn);
+    parent.appendChild(b);
+    return b;
+  }
 
   function mulberry32(a) {
     return function() {
@@ -683,34 +676,26 @@
     return { text: 'Off', bg: '#ff6b6b', color: '#400' };
   }
 
-  /* ---------- chirp type setting ---------- */
-  let chirpType = localStorage.getItem('cg-chirp') || 'audible';
-  const chirpSeg = document.getElementById('chirp-seg');
-  function renderChirpSeg() {
-    chirpSeg.querySelectorAll('button').forEach(b =>
-      b.classList.toggle('seg-on', b.dataset.v === chirpType));
+  /* ---------- connection mode setting ---------- */
+  let transferMode = localStorage.getItem('cg-transfer') || 'audible';
+  const modeSeg = document.getElementById('mode-seg');
+  function renderModeSeg() {
+    modeSeg.querySelectorAll('button').forEach(b =>
+      b.classList.toggle('seg-on', b.dataset.v === transferMode));
   }
-  chirpSeg.querySelectorAll('button').forEach(b =>
+  modeSeg.querySelectorAll('button').forEach(b =>
     b.addEventListener('click', () => {
-      chirpType = b.dataset.v;
-      localStorage.setItem('cg-chirp', chirpType);
-      renderChirpSeg();
+      transferMode = b.dataset.v;
+      localStorage.setItem('cg-transfer', transferMode);
+      renderModeSeg();
     }));
-  renderChirpSeg();
+  renderModeSeg();
 
   /* ================= AUDIO / ggwave ================= */
   const Sound = {
-    ctx: null,
-    ggwave: null,
-    instance: null,
-    proto: null,
-    stream: null,
-    processor: null,
-    micSource: null,
-    listening: false,
-    txActive: false,
-    lastLoudAt: 0,
-    onMessage: null,
+    ctx: null, ggwave: null, instance: null,
+    stream: null, processor: null, micSource: null,
+    listening: false, txActive: false, lastLoudAt: 0,
   };
 
   function convertTypedArray(src, Type) {
@@ -721,9 +706,7 @@
 
   async function ensureAudio() {
     if (Sound.instance) return;
-    if (typeof ggwave_factory === 'undefined') {
-      throw new Error('Sound library not loaded.');
-    }
+    if (typeof ggwave_factory === 'undefined') throw new Error('Sound library not loaded.');
     const Ctx = window.AudioContext || window.webkitAudioContext;
     Sound.ctx = new Ctx();
     if (Sound.ctx.state === 'suspended') await Sound.ctx.resume();
@@ -731,7 +714,7 @@
     const p = Sound.ggwave.getDefaultParameters();
     p.sampleRateInp = Sound.ctx.sampleRate;
     p.sampleRateOut = Sound.ctx.sampleRate;
-    p.payloadLength = -1; // variable-length messages
+    p.payloadLength = -1;
     Sound.instance = Sound.ggwave.init(p);
   }
 
@@ -751,8 +734,7 @@
         const res = Sound.ggwave.decode(
           Sound.instance, convertTypedArray(new Float32Array(input), Int8Array));
         if (res && res.length > 0) {
-          const text = new TextDecoder('utf-8').decode(res);
-          if (Sound.onMessage) Sound.onMessage(text);
+          handleSoundMessage(new TextDecoder('utf-8').decode(res));
         }
       } catch (err) { /* ignore decode noise */ }
     };
@@ -775,7 +757,7 @@
 
   function transmit(text) {
     const protoEnum = Sound.ggwave.ProtocolId;
-    const proto = chirpType === 'ultrasound'
+    const proto = transferMode === 'ultrasound'
       ? protoEnum.GGWAVE_PROTOCOL_ULTRASOUND_FAST
       : protoEnum.GGWAVE_PROTOCOL_AUDIBLE_FAST;
     const waveform = Sound.ggwave.encode(Sound.instance, text, proto, 20);
@@ -799,21 +781,77 @@
       await transmit(text);
       return;
     }
-    await transmit(text); // give up waiting, just send
+    await transmit(text);
+  }
+
+  /* ================= QR CODES ================= */
+  function renderQr(el, payload) {
+    try {
+      const qr = qrcode(0, 'M');
+      qr.addData(payload);
+      qr.make();
+      el.innerHTML = qr.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
+    } catch (err) {
+      el.textContent = 'Could not build QR code.';
+    }
+  }
+
+  const Scan = { stream: null, raf: null, active: false };
+  function stopScan() {
+    Scan.active = false;
+    if (Scan.raf) cancelAnimationFrame(Scan.raf);
+    Scan.raf = null;
+    if (Scan.stream) Scan.stream.getTracks().forEach(t => t.stop());
+    Scan.stream = null;
+  }
+  async function startScan(title, hint, onResult, doneLabel, doneFn) {
+    document.getElementById('scan-title').textContent = title;
+    document.getElementById('scan-hint').textContent = hint;
+    document.getElementById('scan-status').textContent = '';
+    const doneBtn = document.getElementById('scan-done');
+    doneBtn.textContent = doneLabel;
+    doneBtn.onclick = () => { stopScan(); doneFn(); };
+    show('qrscan');
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    } catch (err) {
+      const st = document.getElementById('scan-status');
+      st.className = 'status error';
+      st.textContent = 'Camera needed to scan: ' + err.message;
+      return;
+    }
+    Scan.stream = stream;
+    Scan.active = true;
+    const video = document.getElementById('scan-video');
+    video.srcObject = stream;
+    try { await video.play(); } catch (e) {}
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    let last = 0;
+    function tick(now) {
+      if (!Scan.active) return;
+      if (video.readyState >= video.HAVE_ENOUGH_DATA && now - last > 150) {
+        last = now;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        if (canvas.width && canvas.height) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(img.data, img.width, img.height);
+          if (code && code.data && onResult(code.data)) { stopScan(); return; }
+        }
+      }
+      Scan.raf = requestAnimationFrame(tick);
+    }
+    Scan.raf = requestAnimationFrame(tick);
   }
 
   /* ================= GAME STATE ================= */
   const G = {
-    mode: null,          // 'solo' | 'mp'
-    role: null,          // 'host' | 'join'
-    seed: 0,
-    gameId: '',
-    totalPlayers: 1,
-    totalRounds: 1,
-    round: 0,
-    myPid: '',
-    myName: '',
-    myScores: [],
+    mode: null, role: null,
+    seed: 0, gameId: '', totalRounds: 1, round: 0,
+    myPid: '', myName: '', myScores: [],
     target: { h: 0, s: 0, l: 0 },
     waitingForSeed: false,
   };
@@ -821,54 +859,86 @@
   let countdownId = null;
   let broadcasting = false;
   let boardVisible = false;
+  let pendingJoin = null;  // { gameId, seed, rounds } from a scanned/opened link
 
-  /* ---------- messaging ---------- */
+  /* ---------- message encoding ---------- */
   function encodeSeed() {
-    return ['S', G.gameId, G.seed.toString(36), G.totalPlayers, G.totalRounds].join('~');
+    return ['S', G.gameId, G.seed.toString(36), G.totalRounds].join('~');
+  }
+  function buildJoinUrl() {
+    return location.origin + location.pathname + '#join=' + encodeSeed();
   }
   function encodeResult() {
     return ['R', G.gameId, G.myPid, G.myName, G.myScores.join(',')].join('~');
   }
+  function encodeGossip() {
+    const entries = Object.keys(results).map(pid => {
+      const r = results[pid];
+      return [pid, r.name, r.scores.join(',')].join(':');
+    });
+    return ['G', G.gameId, entries.join('|')].join('~');
+  }
 
-  function handleMessage(text) {
+  // Accepts a raw "S~..." payload or a full join URL containing "#join=".
+  function parseSeedText(text) {
+    let payload = text;
+    const idx = text.indexOf('join=');
+    if (idx >= 0) {
+      try { payload = decodeURIComponent(text.slice(idx + 5)); }
+      catch (e) { payload = text.slice(idx + 5); }
+    }
+    const p = payload.split('~');
+    if (p[0] === 'S' && p.length === 4) {
+      return {
+        gameId: p[1],
+        seed: parseInt(p[2], 36) || 0,
+        rounds: Math.max(1, parseInt(p[3], 10) || 1),
+      };
+    }
+    return null;
+  }
+
+  function mergeGossip(text) {
     const p = text.split('~');
-    if (p[0] === 'S' && p.length === 5) {
+    if (p[0] !== 'G' || p.length < 3) return -1;
+    if (!G.gameId || p[1] !== G.gameId) return -1;
+    let added = 0;
+    p[2].split('|').forEach(entry => {
+      const f = entry.split(':');
+      if (f.length < 3) return;
+      const scores = f[2].split(',').map(n => parseInt(n, 10)).filter(n => !isNaN(n));
+      if (!scores.length) return;
+      if (!results[f[0]]) added++;
+      results[f[0]] = { name: f[1] || '?', scores: scores };
+    });
+    return added;
+  }
+
+  function handleSoundMessage(text) {
+    const p = text.split('~');
+    if (p[0] === 'S' && p.length === 4) {
       if (G.role === 'join' && G.waitingForSeed) {
-        G.waitingForSeed = false;
-        G.gameId = p[1];
-        G.seed = parseInt(p[2], 36) || 0;
-        G.totalPlayers = Math.max(1, parseInt(p[3], 10) || 2);
-        G.totalRounds = Math.max(1, parseInt(p[4], 10) || 1);
-        G.round = 0;
-        G.myScores = [];
-        startRound();
+        const s = parseSeedText(text);
+        if (s) { G.waitingForSeed = false; applySeed(s.gameId, s.seed, s.rounds); }
       }
     } else if (p[0] === 'R' && p.length === 5) {
       if (!G.gameId || p[1] !== G.gameId) return;
-      const pid = p[2];
       const scores = p[4].split(',').map(n => parseInt(n, 10)).filter(n => !isNaN(n));
       if (!scores.length) return;
-      results[pid] = { name: p[3] || '?', scores: scores };
+      results[p[2]] = { name: p[3] || '?', scores: scores };
       if (boardVisible) renderBoard();
     }
   }
-  Sound.onMessage = handleMessage;
 
-  /* ---------- result broadcasting loop ---------- */
-  function haveAllResults() {
-    return Object.keys(results).length >= G.totalPlayers;
-  }
+  /* ---------- result broadcasting (sound only) ---------- */
   function startBroadcastingResult() {
     if (broadcasting) return;
     broadcasting = true;
     (async function loop() {
-      let extra = 0;
-      while (broadcasting) {
+      let n = 0;
+      while (broadcasting && n < 40) {
         await sendChirp(encodeResult());
-        if (haveAllResults()) {
-          extra++;
-          if (extra >= 2) break;   // a couple of extra sends after everyone is in
-        }
+        n++;
         await sleep(9000 + Math.random() * 7000);
       }
       broadcasting = false;
@@ -876,6 +946,15 @@
   }
 
   /* ================= ROUND FLOW ================= */
+  function applySeed(gameId, seed, rounds) {
+    G.gameId = gameId;
+    G.seed = seed;
+    G.totalRounds = Math.max(1, rounds);
+    G.round = 0;
+    G.myScores = [];
+    startRound();
+  }
+
   function startRound() {
     boardVisible = false;
     G.target = colorForRound(G.seed, G.round);
@@ -955,32 +1034,29 @@
 
   function renderResultActions() {
     resultActions.innerHTML = '';
-    const mk = (label, cls, fn) => {
-      const b = document.createElement('button');
-      b.textContent = label;
-      b.className = cls;
-      b.addEventListener('click', fn);
-      resultActions.appendChild(b);
-    };
     if (G.mode === 'solo') {
-      mk('Home', 'home', goHome);
-      mk('Play again', 'play-again', startSolo);
+      mkButton(resultActions, 'Home', 'home', goHome);
+      mkButton(resultActions, 'Play again', 'play-again', startSolo);
     } else if (G.round < G.totalRounds - 1) {
-      mk('Next round', 'play-again', () => { G.round++; startRound(); });
+      mkButton(resultActions, 'Next round', 'play-again', () => { G.round++; startRound(); });
     } else {
-      mk('See leaderboard', 'play-again', finalizeMp);
+      mkButton(resultActions, 'See leaderboard', 'play-again', finalizeMp);
     }
   }
 
   function finalizeMp() {
     results[G.myPid] = { name: G.myName, scores: G.myScores.slice() };
-    show('board');
-    boardVisible = true;
-    renderBoard();
-    startBroadcastingResult();
+    showBoard();
+    if (transferMode !== 'qr') startBroadcastingResult();
   }
 
   /* ---------- leaderboard ---------- */
+  function showBoard() {
+    boardVisible = true;
+    renderBoard();
+    show('board');
+  }
+
   function renderBoard() {
     const list = document.getElementById('board-list');
     const rows = Object.keys(results).map(pid => {
@@ -1004,26 +1080,47 @@
         `<div class="board-total">${row.total}</div>`;
       list.appendChild(el);
     });
-    // placeholders for players not yet heard from
-    const missing = G.totalPlayers - rows.length;
-    for (let i = 0; i < missing; i++) {
-      const el = document.createElement('div');
-      el.className = 'board-row pending';
-      el.innerHTML =
-        `<div class="board-rank">·</div>` +
-        `<div class="board-info"><div class="board-name">Waiting…</div></div>` +
-        `<div class="board-total">&mdash;</div>`;
-      list.appendChild(el);
-    }
+
     document.getElementById('board-count').textContent =
-      `${rows.length} of ${G.totalPlayers} players`;
-    document.getElementById('board-status').textContent = haveAllResults()
-      ? 'All results are in!'
-      : 'Listening for other players…';
+      rows.length === 1 ? '1 player' : rows.length + ' players';
+
+    const actions = document.getElementById('board-actions');
+    actions.innerHTML = '';
+    const status = document.getElementById('board-status');
+    if (transferMode === 'qr') {
+      mkButton(actions, 'Show my code', 'secondary', () =>
+        showQr('Your results',
+          encodeGossip(),
+          'Let other players scan this to collect your scores.',
+          'Back to leaderboard',
+          () => showBoard()));
+      mkButton(actions, 'Scan a player', 'secondary', () =>
+        startScan('Scan a player',
+          "Point the camera at another player's results code.",
+          (text) => {
+            const added = mergeGossip(text);
+            const st = document.getElementById('scan-status');
+            if (added > 0) st.textContent = `Added! ${Object.keys(results).length} players collected.`;
+            else if (added === 0) st.textContent = 'Already had that player.';
+            else st.textContent = 'Not a results code for this game.';
+            return false;
+          },
+          'Done', () => showBoard()));
+      status.textContent = 'Scan other players to collect everyone’s results.';
+    } else {
+      status.textContent = 'Listening for other players…';
+    }
   }
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"]/g, c =>
-      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  /* ---------- QR display screen ---------- */
+  function showQr(title, payload, caption, btnLabel, onDone) {
+    document.getElementById('qr-title').textContent = title;
+    document.getElementById('qr-caption').textContent = caption;
+    renderQr(document.getElementById('qr-box'), payload);
+    const btn = document.getElementById('qr-done');
+    btn.textContent = btnLabel;
+    btn.onclick = onDone;
+    show('qrshow');
   }
 
   /* ================= MODE ENTRY POINTS ================= */
@@ -1032,6 +1129,7 @@
     broadcasting = false;
     boardVisible = false;
     G.waitingForSeed = false;
+    stopScan();
     stopAudio();
     show('start');
   }
@@ -1046,8 +1144,26 @@
   }
 
   async function startHost() {
-    const players = parseInt(document.getElementById('players-val').textContent, 10);
     const rounds = parseInt(document.getElementById('rounds-val').textContent, 10);
+    G.mode = 'mp';
+    G.role = 'host';
+    G.gameId = randId();
+    G.seed = Math.floor(Math.random() * 0x7FFFFFFF);
+    G.totalRounds = rounds;
+    G.round = 0;
+    G.myPid = randId();
+    G.myScores = [];
+    results = {};
+
+    if (transferMode === 'qr') {
+      showQr('Game code',
+        buildJoinUrl(),
+        'Players scan this with any camera, or with “Join a game”. Tap below once everyone has joined.',
+        'Everyone is in — start',
+        () => startRound());
+      return;
+    }
+
     const status = document.getElementById('host-status');
     status.className = 'status';
     status.textContent = 'Starting sound…';
@@ -1059,16 +1175,6 @@
       status.textContent = 'Microphone needed to play together: ' + err.message;
       return;
     }
-    G.mode = 'mp';
-    G.role = 'host';
-    G.gameId = randId();
-    G.seed = Math.floor(Math.random() * 0x7FFFFFFF);
-    G.totalPlayers = players;
-    G.totalRounds = rounds;
-    G.round = 0;
-    G.myPid = randId();
-    G.myScores = [];
-    results = {};
     const msg = encodeSeed();
     for (let i = 0; i < 3; i++) {
       status.textContent = `Broadcasting game… (${i + 1}/3)`;
@@ -1079,6 +1185,25 @@
   }
 
   async function startJoin() {
+    G.mode = 'mp';
+    G.role = 'join';
+    G.gameId = '';
+    G.myPid = randId();
+    G.myScores = [];
+    results = {};
+
+    if (transferMode === 'qr') {
+      startScan('Scan the game code',
+        "Point the camera at the host's QR code.",
+        (text) => {
+          const s = parseSeedText(text);
+          if (s) { applySeed(s.gameId, s.seed, s.rounds); return true; }
+          return false;
+        },
+        'Cancel', goHome);
+      return;
+    }
+
     const status = document.getElementById('join-status');
     status.className = 'status';
     status.textContent = 'Starting sound…';
@@ -1092,50 +1217,72 @@
       return;
     }
     status.textContent = '';
+    G.waitingForSeed = true;
+  }
+
+  function joinFromLink(name) {
     G.mode = 'mp';
     G.role = 'join';
-    G.gameId = '';
+    G.myName = name;
     G.myPid = randId();
     G.myScores = [];
     results = {};
-    G.waitingForSeed = true;
+    transferMode = 'qr';   // link arrivals collect results by QR
+    const j = pendingJoin;
+    pendingJoin = null;
+    applySeed(j.gameId, j.seed, j.rounds);
+  }
+
+  /* ---------- name screen ---------- */
+  function showMpName() {
+    const invited = !!pendingJoin;
+    document.getElementById('mpname-title').textContent =
+      invited ? "You're invited!" : 'Play with friends';
+    document.getElementById('mpname-sub').textContent = invited
+      ? 'Enter your name to join the game.'
+      : 'Everyone gets the same colors. Phones share the game over sound or QR codes — no internet needed.';
+    document.getElementById('btn-host').style.display = invited ? 'none' : '';
+    document.getElementById('btn-join').textContent = invited ? 'Join the game' : 'Join a game';
+    document.getElementById('name-input').value = G.myName || '';
+    show('mpname');
+  }
+
+  function readName() {
+    return document.getElementById('name-input').value
+      .replace(/[~,|:]/g, '').trim().slice(0, 10);
   }
 
   /* ================= UI WIRING ================= */
   document.getElementById('btn-solo').addEventListener('click', startSolo);
-  document.getElementById('btn-mp').addEventListener('click', () => {
-    document.getElementById('name-input').value = G.myName || '';
-    show('mpname');
-  });
+  document.getElementById('btn-mp').addEventListener('click', showMpName);
   document.getElementById('btn-submit').addEventListener('click', submitGuess);
   document.getElementById('btn-board-home').addEventListener('click', goHome);
-
   document.querySelectorAll('[data-home]').forEach(b =>
     b.addEventListener('click', goHome));
-
-  function readName() {
-    const v = document.getElementById('name-input').value
-      .replace(/[~,]/g, '').trim().slice(0, 10);
-    return v;
-  }
 
   document.getElementById('btn-host').addEventListener('click', () => {
     const name = readName();
     if (!name) { document.getElementById('name-input').focus(); return; }
     G.myName = name;
     document.getElementById('host-status').textContent = '';
+    document.getElementById('btn-broadcast').textContent =
+      transferMode === 'qr' ? 'Create game code' : 'Broadcast & start';
+    document.getElementById('host-sub').textContent = transferMode === 'qr'
+      ? 'Set the number of rounds, then show the code for players to scan.'
+      : 'Set the number of rounds, then broadcast. Make sure other phones are listening first.';
     show('mphost');
   });
   document.getElementById('btn-join').addEventListener('click', () => {
     const name = readName();
     if (!name) { document.getElementById('name-input').focus(); return; }
+    if (pendingJoin) { joinFromLink(name); return; }
     G.myName = name;
     startJoin();
   });
   document.getElementById('btn-broadcast').addEventListener('click', startHost);
 
   // steppers
-  const stepLimits = { players: [2, 12], rounds: [1, 10] };
+  const stepLimits = { rounds: [1, 10] };
   document.querySelectorAll('.stepper').forEach(st => {
     const target = st.dataset.target;
     const valEl = document.getElementById(target + '-val');
@@ -1144,14 +1291,23 @@
         let v = parseInt(valEl.textContent, 10);
         v += btn.dataset.act === 'inc' ? 1 : -1;
         const [lo, hi] = stepLimits[target];
-        v = Math.max(lo, Math.min(hi, v));
-        valEl.textContent = v;
+        valEl.textContent = Math.max(lo, Math.min(hi, v));
       }));
   });
 
   [hueSlider, satSlider, litSlider].forEach(s =>
     s.addEventListener('input', updateGuess));
   updateGuess();
+
+  /* ---------- handle a join link in the URL ---------- */
+  (function checkJoinLink() {
+    if (location.hash.indexOf('join=') < 0) return;
+    const s = parseSeedText(location.hash);
+    if (s) pendingJoin = s;
+    try { history.replaceState(null, '', location.pathname + location.search); }
+    catch (e) {}
+  })();
+  if (pendingJoin) showMpName();
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
