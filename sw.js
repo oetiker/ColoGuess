@@ -1,8 +1,9 @@
-const CACHE = 'cologuess-v1';
+const CACHE = 'cologuess-v2';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
+  './ggwave.js',
   './icon-192.png',
   './icon-512.png'
 ];
