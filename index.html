@@ -38,15 +38,17 @@
   }
   .screen.active { display: flex; }
 
-  /* Start screen */
-  #start {
+  /* Generic centered screens */
+  .centered {
     align-items: center;
     justify-content: center;
     text-align: center;
     padding: 24px;
+  }
+  #start, #mpname, #mphost, #mpjoin {
     background: linear-gradient(135deg, #1a1a2e, #16213e);
   }
-  #start h1 {
+  h1 {
     font-size: 2.5rem;
     margin-bottom: 8px;
     background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb, #1dd1a1);
@@ -54,9 +56,13 @@
     background-clip: text;
     color: transparent;
   }
-  #start p {
+  h2 {
+    font-size: 1.6rem;
+    margin-bottom: 8px;
+  }
+  .sub {
     opacity: 0.8;
-    margin-bottom: 32px;
+    margin-bottom: 28px;
     max-width: 320px;
     line-height: 1.5;
   }
@@ -71,8 +77,163 @@
     cursor: pointer;
     box-shadow: 0 4px 20px rgba(255,255,255,0.2);
     transition: transform 0.1s;
+    width: 100%;
+    max-width: 300px;
   }
-  button.primary:active { transform: scale(0.96); }
+  button.primary:active { transform: scale(0.97); }
+  button.secondary {
+    background: #2a2a3e;
+    color: #eee;
+    border: none;
+    padding: 14px 32px;
+    border-radius: 999px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    max-width: 300px;
+    margin-top: 12px;
+  }
+  button.secondary:active { transform: scale(0.97); }
+  .link-btn {
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 0.9rem;
+    cursor: pointer;
+    margin-top: 20px;
+    text-decoration: underline;
+  }
+
+  /* Chirp type segmented control */
+  .seg {
+    display: flex;
+    margin-top: 24px;
+    background: #2a2a3e;
+    border-radius: 999px;
+    padding: 4px;
+    gap: 4px;
+  }
+  .seg button {
+    border: none;
+    background: transparent;
+    color: #aaa;
+    padding: 8px 18px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .seg button.seg-on {
+    background: #fff;
+    color: #111;
+  }
+  .seg-label {
+    font-size: 0.75rem;
+    opacity: 0.55;
+    margin-top: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Text input */
+  .field {
+    width: 100%;
+    max-width: 300px;
+    margin-bottom: 8px;
+  }
+  .field label {
+    display: block;
+    font-size: 0.8rem;
+    opacity: 0.6;
+    margin-bottom: 6px;
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  input[type="text"] {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid #3a3a4e;
+    background: #1a1a28;
+    color: #eee;
+    font-size: 1.05rem;
+    user-select: text;
+    -webkit-user-select: text;
+  }
+  input[type="text"]:focus { outline: 2px solid #48dbfb; }
+
+  /* Stepper */
+  .stepper-row {
+    width: 100%;
+    max-width: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .stepper-row .s-label {
+    font-size: 0.95rem;
+    opacity: 0.85;
+  }
+  .stepper {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: #2a2a3e;
+    border-radius: 999px;
+    padding: 4px;
+  }
+  .step-btn {
+    width: 38px;
+    height: 38px;
+    border: none;
+    border-radius: 50%;
+    background: #fff;
+    color: #111;
+    font-size: 1.3rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .step-btn:active { transform: scale(0.92); }
+  .step-val {
+    width: 44px;
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .status {
+    margin-top: 20px;
+    font-size: 0.9rem;
+    opacity: 0.7;
+    min-height: 1.2em;
+    max-width: 300px;
+    line-height: 1.4;
+  }
+  .status.error { color: #ff6b6b; opacity: 1; }
+
+  /* Listening animation */
+  .dots {
+    display: flex;
+    gap: 10px;
+    margin: 28px 0;
+  }
+  .dots span {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #48dbfb;
+    animation: pulse 1.2s infinite ease-in-out;
+  }
+  .dots span:nth-child(2) { animation-delay: 0.2s; }
+  .dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulse {
+    0%, 100% { transform: scale(0.6); opacity: 0.3; }
+    50% { transform: scale(1); opacity: 1; }
+  }
 
   /* Show color screen */
   #show {
@@ -108,9 +269,7 @@
   }
 
   /* Guess screen */
-  #guess {
-    flex-direction: column;
-  }
+  #guess { flex-direction: column; }
   .preview {
     flex: 1;
     display: flex;
@@ -196,15 +355,11 @@
     border: 2px solid #111;
     box-shadow: 0 2px 6px rgba(0,0,0,0.4);
   }
-
   #hue-slider { --track: linear-gradient(to right,
     hsl(0,100%,50%), hsl(60,100%,50%), hsl(120,100%,50%),
     hsl(180,100%,50%), hsl(240,100%,50%), hsl(300,100%,50%), hsl(360,100%,50%)); }
 
-  .actions {
-    display: flex;
-    gap: 12px;
-  }
+  .actions { display: flex; gap: 12px; }
   .actions button {
     flex: 1;
     padding: 14px;
@@ -214,28 +369,18 @@
     font-weight: 600;
     cursor: pointer;
   }
-  .actions .submit {
-    background: #fff;
-    color: #111;
-  }
+  .actions .submit { background: #fff; color: #111; }
   .actions .submit:active { background: #ddd; }
 
   /* Result screen */
-  #result {
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    text-align: center;
-  }
-  #result .score {
-    font-size: 4rem;
-    font-weight: 700;
-    margin-bottom: 8px;
-  }
-  #result .label-score {
-    opacity: 0.7;
-    margin-bottom: 24px;
-    font-size: 0.95rem;
+  #result { align-items: center; justify-content: center; padding: 24px; text-align: center; }
+  #result .score { font-size: 4rem; font-weight: 700; margin-bottom: 8px; }
+  #result .label-score { opacity: 0.7; margin-bottom: 16px; font-size: 0.95rem; }
+  #mp-progress {
+    font-size: 0.85rem;
+    opacity: 0.8;
+    margin-bottom: 16px;
+    color: #48dbfb;
   }
   #result .swatches {
     display: flex;
@@ -264,11 +409,8 @@
     margin-bottom: 28px;
     line-height: 1.6;
   }
-  #result .actions-result {
-    display: flex;
-    gap: 12px;
-  }
-  #result .actions-result button {
+  #result-actions { display: flex; gap: 12px; }
+  #result-actions button {
     padding: 14px 24px;
     border: none;
     border-radius: 999px;
@@ -276,14 +418,8 @@
     font-weight: 600;
     cursor: pointer;
   }
-  #result .play-again {
-    background: #fff;
-    color: #111;
-  }
-  #result .home {
-    background: #2a2a2a;
-    color: #eee;
-  }
+  #result-actions .play-again { background: #fff; color: #111; }
+  #result-actions .home { background: #2a2a2a; color: #eee; }
 
   .grade {
     display: inline-block;
@@ -295,19 +431,124 @@
     letter-spacing: 0.5px;
     text-transform: uppercase;
   }
+
+  /* Leaderboard */
+  #board { padding: env(safe-area-inset-top, 20px) 20px calc(20px + env(safe-area-inset-bottom, 0px)); }
+  .board-head { text-align: center; margin: 12px 0 8px; }
+  #board-count { font-size: 0.9rem; opacity: 0.7; }
+  #board-list {
+    flex: 1;
+    overflow-y: auto;
+    margin: 12px 0;
+    -webkit-overflow-scrolling: touch;
+  }
+  .board-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #1c1c2a;
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+  }
+  .board-row.me { outline: 2px solid #48dbfb; }
+  .board-row.pending { opacity: 0.45; }
+  .board-rank {
+    font-size: 1.2rem;
+    font-weight: 700;
+    width: 30px;
+    text-align: center;
+  }
+  .board-info { flex: 1; min-width: 0; }
+  .board-name {
+    font-size: 1rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .board-rounds {
+    font-size: 0.72rem;
+    opacity: 0.55;
+    margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .board-total {
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  #board-status {
+    text-align: center;
+    font-size: 0.85rem;
+    opacity: 0.7;
+    margin-bottom: 12px;
+    min-height: 1.2em;
+  }
+  #board .primary { margin: 0 auto; }
 </style>
 </head>
 <body>
 <div id="app">
 
-  <section id="start" class="screen active">
+  <section id="start" class="screen centered active">
     <h1>ColoGuess</h1>
-    <p>A color flashes for 5 seconds. Recreate it using the hue, saturation and lightness sliders.</p>
-    <button class="primary" id="btn-start">Start</button>
+    <p class="sub">A color flashes briefly. Recreate it with the hue, saturation and lightness sliders.</p>
+    <button class="primary" id="btn-mp">Play with friends</button>
+    <button class="secondary" id="btn-solo">Solo practice</button>
+    <div class="seg-label">Sound transfer</div>
+    <div class="seg" id="chirp-seg">
+      <button data-v="audible">Audible</button>
+      <button data-v="ultrasound">Ultrasonic</button>
+    </div>
+  </section>
+
+  <section id="mpname" class="screen centered">
+    <h2>Play with friends</h2>
+    <p class="sub">Everyone gets the same colors. Phones share the game over sound &mdash; no internet needed.</p>
+    <div class="field">
+      <label for="name-input">Your name</label>
+      <input type="text" id="name-input" maxlength="10" placeholder="e.g. Alex" autocomplete="off">
+    </div>
+    <button class="primary" id="btn-host">Host a game</button>
+    <button class="secondary" id="btn-join">Join a game</button>
+    <button class="link-btn" data-home="1">Back</button>
+  </section>
+
+  <section id="mphost" class="screen centered">
+    <h2>Host a game</h2>
+    <p class="sub">Set up the game, then broadcast it. Make sure other phones are listening first.</p>
+    <div class="stepper-row">
+      <span class="s-label">Players</span>
+      <div class="stepper" data-target="players">
+        <button class="step-btn" data-act="dec">&minus;</button>
+        <span class="step-val" id="players-val">4</span>
+        <button class="step-btn" data-act="inc">+</button>
+      </div>
+    </div>
+    <div class="stepper-row">
+      <span class="s-label">Rounds</span>
+      <div class="stepper" data-target="rounds">
+        <button class="step-btn" data-act="dec">&minus;</button>
+        <span class="step-val" id="rounds-val">5</span>
+        <button class="step-btn" data-act="inc">+</button>
+      </div>
+    </div>
+    <button class="primary" id="btn-broadcast">Broadcast &amp; start</button>
+    <div class="status" id="host-status"></div>
+    <button class="link-btn" data-home="1">Back</button>
+  </section>
+
+  <section id="mpjoin" class="screen centered">
+    <h2>Joining a game</h2>
+    <div class="dots"><span></span><span></span><span></span></div>
+    <p class="sub" id="join-text">Listening for the host&hellip; keep this phone near the host's phone.</p>
+    <div class="status" id="join-status"></div>
+    <button class="link-btn" data-home="1">Cancel</button>
   </section>
 
   <section id="show" class="screen">
-    <div class="label">Memorize</div>
+    <div class="label" id="show-label">Memorize</div>
     <div class="timer" id="timer">5</div>
   </section>
 
@@ -341,32 +582,45 @@
 
   <section id="result" class="screen">
     <div class="score" id="score">0</div>
-    <div class="label-score">out of 100</div>
+    <div class="label-score" id="label-score">out of 100</div>
+    <div id="mp-progress"></div>
     <div class="grade" id="grade"></div>
     <div class="swatches">
       <div id="swatch-target"><span>target</span></div>
       <div id="swatch-guess"><span>yours</span></div>
     </div>
     <div class="details" id="details"></div>
-    <div class="actions-result">
-      <button class="home" id="btn-home">Home</button>
-      <button class="play-again" id="btn-again">Play again</button>
+    <div id="result-actions"></div>
+  </section>
+
+  <section id="board" class="screen">
+    <div class="board-head">
+      <h2>Leaderboard</h2>
+      <div id="board-count">&mdash;</div>
     </div>
+    <div id="board-list"></div>
+    <div id="board-status"></div>
+    <button class="primary" id="btn-board-home">Home</button>
   </section>
 
 </div>
 
+<script src="ggwave.js"></script>
 <script>
 (function() {
   'use strict';
 
-  const screens = {
-    start: document.getElementById('start'),
-    show: document.getElementById('show'),
-    guess: document.getElementById('guess'),
-    result: document.getElementById('result'),
-  };
+  /* ---------- screen management ---------- */
+  const screens = {};
+  document.querySelectorAll('.screen').forEach(s => screens[s.id] = s);
+  function show(name) {
+    Object.values(screens).forEach(s => s.classList.remove('active'));
+    screens[name].classList.add('active');
+  }
+
+  /* ---------- elements ---------- */
   const showEl = screens.show;
+  const showLabel = document.getElementById('show-label');
   const timerEl = document.getElementById('timer');
   const previewCurrent = document.getElementById('preview-current');
   const hueSlider = document.getElementById('hue-slider');
@@ -376,32 +630,259 @@
   const satVal = document.getElementById('sat-val');
   const litVal = document.getElementById('lit-val');
   const scoreEl = document.getElementById('score');
+  const labelScoreEl = document.getElementById('label-score');
+  const mpProgressEl = document.getElementById('mp-progress');
   const gradeEl = document.getElementById('grade');
   const swatchTarget = document.getElementById('swatch-target');
   const swatchGuess = document.getElementById('swatch-guess');
   const detailsEl = document.getElementById('details');
+  const resultActions = document.getElementById('result-actions');
 
-  let target = { h: 0, s: 0, l: 0 };
-  let countdownId = null;
-
-  function show(screenName) {
-    Object.values(screens).forEach(s => s.classList.remove('active'));
-    screens[screenName].classList.add('active');
-  }
-
+  /* ---------- helpers ---------- */
   function hsl(c) { return `hsl(${c.h}, ${c.s}%, ${c.l}%)`; }
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+  function randId() { return Math.floor(Math.random() * 46656).toString(36).padStart(3, '0'); }
 
-  function randomColor() {
+  function mulberry32(a) {
+    return function() {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function colorForRound(seed, i) {
+    const r = mulberry32((Math.imul(seed, 0x9E3779B1) + Math.imul(i + 1, 0x85EBCA77)) | 0);
     return {
-      h: Math.floor(Math.random() * 361),
-      s: 30 + Math.floor(Math.random() * 71),
-      l: 25 + Math.floor(Math.random() * 51),
+      h: Math.floor(r() * 361),
+      s: 30 + Math.floor(r() * 71),
+      l: 25 + Math.floor(r() * 51),
     };
   }
 
-  function startGame() {
-    target = randomColor();
-    showEl.style.background = hsl(target);
+  function hslToRgb(h, s, l) {
+    s /= 100; l /= 100;
+    const k = n => (n + h / 30) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
+  }
+  function computeScore(a, b) {
+    const [r1, g1, b1] = hslToRgb(a.h, a.s, a.l);
+    const [r2, g2, b2] = hslToRgb(b.h, b.s, b.l);
+    const dr = r1 - r2, dg = g1 - g2, db = b1 - b2;
+    const dist = Math.sqrt(dr*dr + dg*dg + db*db);
+    const maxDist = Math.sqrt(3) * 255;
+    return Math.max(0, Math.round(100 - (dist / maxDist) * 200));
+  }
+  function gradeFor(score) {
+    if (score >= 95) return { text: 'Pixel perfect', bg: '#1dd1a1', color: '#062' };
+    if (score >= 85) return { text: 'Excellent', bg: '#48dbfb', color: '#024' };
+    if (score >= 70) return { text: 'Good', bg: '#feca57', color: '#420' };
+    if (score >= 50) return { text: 'Close', bg: '#ff9f43', color: '#420' };
+    return { text: 'Off', bg: '#ff6b6b', color: '#400' };
+  }
+
+  /* ---------- chirp type setting ---------- */
+  let chirpType = localStorage.getItem('cg-chirp') || 'audible';
+  const chirpSeg = document.getElementById('chirp-seg');
+  function renderChirpSeg() {
+    chirpSeg.querySelectorAll('button').forEach(b =>
+      b.classList.toggle('seg-on', b.dataset.v === chirpType));
+  }
+  chirpSeg.querySelectorAll('button').forEach(b =>
+    b.addEventListener('click', () => {
+      chirpType = b.dataset.v;
+      localStorage.setItem('cg-chirp', chirpType);
+      renderChirpSeg();
+    }));
+  renderChirpSeg();
+
+  /* ================= AUDIO / ggwave ================= */
+  const Sound = {
+    ctx: null,
+    ggwave: null,
+    instance: null,
+    proto: null,
+    stream: null,
+    processor: null,
+    micSource: null,
+    listening: false,
+    txActive: false,
+    lastLoudAt: 0,
+    onMessage: null,
+  };
+
+  function convertTypedArray(src, Type) {
+    const buf = new ArrayBuffer(src.byteLength);
+    new src.constructor(buf).set(src);
+    return new Type(buf);
+  }
+
+  async function ensureAudio() {
+    if (Sound.instance) return;
+    if (typeof ggwave_factory === 'undefined') {
+      throw new Error('Sound library not loaded.');
+    }
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    Sound.ctx = new Ctx();
+    if (Sound.ctx.state === 'suspended') await Sound.ctx.resume();
+    Sound.ggwave = await ggwave_factory();
+    const p = Sound.ggwave.getDefaultParameters();
+    p.sampleRateInp = Sound.ctx.sampleRate;
+    p.sampleRateOut = Sound.ctx.sampleRate;
+    p.payloadLength = -1; // variable-length messages
+    Sound.instance = Sound.ggwave.init(p);
+  }
+
+  async function startListening() {
+    if (Sound.listening) return;
+    Sound.stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    });
+    Sound.micSource = Sound.ctx.createMediaStreamSource(Sound.stream);
+    Sound.processor = Sound.ctx.createScriptProcessor(1024, 1, 1);
+    Sound.processor.onaudioprocess = (e) => {
+      const input = e.inputBuffer.getChannelData(0);
+      let sum = 0;
+      for (let i = 0; i < input.length; i++) sum += input[i] * input[i];
+      if (Math.sqrt(sum / input.length) > 0.02) Sound.lastLoudAt = performance.now();
+      try {
+        const res = Sound.ggwave.decode(
+          Sound.instance, convertTypedArray(new Float32Array(input), Int8Array));
+        if (res && res.length > 0) {
+          const text = new TextDecoder('utf-8').decode(res);
+          if (Sound.onMessage) Sound.onMessage(text);
+        }
+      } catch (err) { /* ignore decode noise */ }
+    };
+    Sound.micSource.connect(Sound.processor);
+    Sound.processor.connect(Sound.ctx.destination);
+    Sound.listening = true;
+  }
+
+  function stopAudio() {
+    if (Sound.processor) { try { Sound.processor.disconnect(); } catch (e) {} }
+    if (Sound.micSource) { try { Sound.micSource.disconnect(); } catch (e) {} }
+    if (Sound.stream) Sound.stream.getTracks().forEach(t => t.stop());
+    Sound.processor = Sound.micSource = Sound.stream = null;
+    Sound.listening = false;
+  }
+
+  function channelBusy() {
+    return !Sound.txActive && (performance.now() - Sound.lastLoudAt) < 700;
+  }
+
+  function transmit(text) {
+    const protoEnum = Sound.ggwave.ProtocolId;
+    const proto = chirpType === 'ultrasound'
+      ? protoEnum.GGWAVE_PROTOCOL_ULTRASOUND_FAST
+      : protoEnum.GGWAVE_PROTOCOL_AUDIBLE_FAST;
+    const waveform = Sound.ggwave.encode(Sound.instance, text, proto, 20);
+    const buf = convertTypedArray(waveform, Float32Array);
+    const audioBuf = Sound.ctx.createBuffer(1, buf.length, Sound.ctx.sampleRate);
+    audioBuf.getChannelData(0).set(buf);
+    const src = Sound.ctx.createBufferSource();
+    src.buffer = audioBuf;
+    src.connect(Sound.ctx.destination);
+    Sound.txActive = true;
+    return new Promise(resolve => {
+      src.onended = () => { Sound.txActive = false; resolve(); };
+      src.start();
+    });
+  }
+
+  // Listen-before-talk: wait for a quiet channel, then transmit.
+  async function sendChirp(text) {
+    for (let attempt = 0; attempt < 8; attempt++) {
+      if (channelBusy()) { await sleep(400 + Math.random() * 900); continue; }
+      await transmit(text);
+      return;
+    }
+    await transmit(text); // give up waiting, just send
+  }
+
+  /* ================= GAME STATE ================= */
+  const G = {
+    mode: null,          // 'solo' | 'mp'
+    role: null,          // 'host' | 'join'
+    seed: 0,
+    gameId: '',
+    totalPlayers: 1,
+    totalRounds: 1,
+    round: 0,
+    myPid: '',
+    myName: '',
+    myScores: [],
+    target: { h: 0, s: 0, l: 0 },
+    waitingForSeed: false,
+  };
+  let results = {};        // pid -> { name, scores: [] }
+  let countdownId = null;
+  let broadcasting = false;
+  let boardVisible = false;
+
+  /* ---------- messaging ---------- */
+  function encodeSeed() {
+    return ['S', G.gameId, G.seed.toString(36), G.totalPlayers, G.totalRounds].join('~');
+  }
+  function encodeResult() {
+    return ['R', G.gameId, G.myPid, G.myName, G.myScores.join(',')].join('~');
+  }
+
+  function handleMessage(text) {
+    const p = text.split('~');
+    if (p[0] === 'S' && p.length === 5) {
+      if (G.role === 'join' && G.waitingForSeed) {
+        G.waitingForSeed = false;
+        G.gameId = p[1];
+        G.seed = parseInt(p[2], 36) || 0;
+        G.totalPlayers = Math.max(1, parseInt(p[3], 10) || 2);
+        G.totalRounds = Math.max(1, parseInt(p[4], 10) || 1);
+        G.round = 0;
+        G.myScores = [];
+        startRound();
+      }
+    } else if (p[0] === 'R' && p.length === 5) {
+      if (!G.gameId || p[1] !== G.gameId) return;
+      const pid = p[2];
+      const scores = p[4].split(',').map(n => parseInt(n, 10)).filter(n => !isNaN(n));
+      if (!scores.length) return;
+      results[pid] = { name: p[3] || '?', scores: scores };
+      if (boardVisible) renderBoard();
+    }
+  }
+  Sound.onMessage = handleMessage;
+
+  /* ---------- result broadcasting loop ---------- */
+  function haveAllResults() {
+    return Object.keys(results).length >= G.totalPlayers;
+  }
+  function startBroadcastingResult() {
+    if (broadcasting) return;
+    broadcasting = true;
+    (async function loop() {
+      let extra = 0;
+      while (broadcasting) {
+        await sendChirp(encodeResult());
+        if (haveAllResults()) {
+          extra++;
+          if (extra >= 2) break;   // a couple of extra sends after everyone is in
+        }
+        await sleep(9000 + Math.random() * 7000);
+      }
+      broadcasting = false;
+    })();
+  }
+
+  /* ================= ROUND FLOW ================= */
+  function startRound() {
+    boardVisible = false;
+    G.target = colorForRound(G.seed, G.round);
+    showEl.style.background = hsl(G.target);
+    showLabel.textContent = G.mode === 'mp'
+      ? `Round ${G.round + 1} of ${G.totalRounds}`
+      : 'Memorize';
     let remaining = 5;
     timerEl.textContent = remaining;
     show('show');
@@ -432,7 +913,6 @@
       l: parseInt(litSlider.value, 10),
     };
   }
-
   function updateGuess() {
     const g = currentGuess();
     hueVal.textContent = g.h;
@@ -445,56 +925,232 @@
       `linear-gradient(to right, hsl(${g.h}, ${g.s}%, 0%), hsl(${g.h}, ${g.s}%, 50%), hsl(${g.h}, ${g.s}%, 100%))`);
   }
 
-  function hslToRgb(h, s, l) {
-    s /= 100; l /= 100;
-    const k = n => (n + h / 30) % 12;
-    const a = s * Math.min(l, 1 - l);
-    const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
-    return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
-  }
-
-  function computeScore(a, b) {
-    const [r1, g1, b1] = hslToRgb(a.h, a.s, a.l);
-    const [r2, g2, b2] = hslToRgb(b.h, b.s, b.l);
-    const dr = r1 - r2, dg = g1 - g2, db = b1 - b2;
-    const dist = Math.sqrt(dr*dr + dg*dg + db*db);
-    const maxDist = Math.sqrt(3) * 255;
-    const score = Math.max(0, 100 - (dist / maxDist) * 200);
-    return Math.round(score);
-  }
-
-  function gradeFor(score) {
-    if (score >= 95) return { text: 'Pixel perfect', bg: '#1dd1a1', color: '#062' };
-    if (score >= 85) return { text: 'Excellent', bg: '#48dbfb', color: '#024' };
-    if (score >= 70) return { text: 'Good', bg: '#feca57', color: '#420' };
-    if (score >= 50) return { text: 'Close', bg: '#ff9f43', color: '#420' };
-    return { text: 'Off', bg: '#ff6b6b', color: '#400' };
-  }
-
   function submitGuess() {
     const g = currentGuess();
-    const score = computeScore(target, g);
+    const score = computeScore(G.target, g);
+    if (G.mode === 'mp') G.myScores.push(score);
+
     scoreEl.textContent = score;
     const gr = gradeFor(score);
     gradeEl.textContent = gr.text;
     gradeEl.style.background = gr.bg;
     gradeEl.style.color = gr.color;
-    swatchTarget.style.background = hsl(target);
+    swatchTarget.style.background = hsl(G.target);
     swatchGuess.style.background = hsl(g);
     detailsEl.innerHTML =
-      `Target: H ${target.h}, S ${target.s}, L ${target.l}<br>` +
+      `Target: H ${G.target.h}, S ${G.target.s}, L ${G.target.l}<br>` +
       `Yours: H ${g.h}, S ${g.s}, L ${g.l}`;
+
+    if (G.mode === 'mp') {
+      const total = G.myScores.reduce((a, b) => a + b, 0);
+      labelScoreEl.textContent = 'this round';
+      mpProgressEl.textContent = `Round ${G.round + 1} of ${G.totalRounds} · Your total ${total}`;
+    } else {
+      labelScoreEl.textContent = 'out of 100';
+      mpProgressEl.textContent = '';
+    }
+    renderResultActions();
     show('result');
   }
 
-  document.getElementById('btn-start').addEventListener('click', startGame);
+  function renderResultActions() {
+    resultActions.innerHTML = '';
+    const mk = (label, cls, fn) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.className = cls;
+      b.addEventListener('click', fn);
+      resultActions.appendChild(b);
+    };
+    if (G.mode === 'solo') {
+      mk('Home', 'home', goHome);
+      mk('Play again', 'play-again', startSolo);
+    } else if (G.round < G.totalRounds - 1) {
+      mk('Next round', 'play-again', () => { G.round++; startRound(); });
+    } else {
+      mk('See leaderboard', 'play-again', finalizeMp);
+    }
+  }
+
+  function finalizeMp() {
+    results[G.myPid] = { name: G.myName, scores: G.myScores.slice() };
+    show('board');
+    boardVisible = true;
+    renderBoard();
+    startBroadcastingResult();
+  }
+
+  /* ---------- leaderboard ---------- */
+  function renderBoard() {
+    const list = document.getElementById('board-list');
+    const rows = Object.keys(results).map(pid => {
+      const r = results[pid];
+      return { pid, name: r.name, scores: r.scores,
+               total: r.scores.reduce((a, b) => a + b, 0) };
+    });
+    rows.sort((a, b) => b.total - a.total);
+
+    list.innerHTML = '';
+    rows.forEach((row, i) => {
+      const el = document.createElement('div');
+      el.className = 'board-row' + (row.pid === G.myPid ? ' me' : '');
+      const medal = ['\u{1F947}', '\u{1F948}', '\u{1F949}'][i] || (i + 1);
+      el.innerHTML =
+        `<div class="board-rank">${medal}</div>` +
+        `<div class="board-info">` +
+          `<div class="board-name">${escapeHtml(row.name)}</div>` +
+          `<div class="board-rounds">${row.scores.join(' · ')}</div>` +
+        `</div>` +
+        `<div class="board-total">${row.total}</div>`;
+      list.appendChild(el);
+    });
+    // placeholders for players not yet heard from
+    const missing = G.totalPlayers - rows.length;
+    for (let i = 0; i < missing; i++) {
+      const el = document.createElement('div');
+      el.className = 'board-row pending';
+      el.innerHTML =
+        `<div class="board-rank">·</div>` +
+        `<div class="board-info"><div class="board-name">Waiting…</div></div>` +
+        `<div class="board-total">&mdash;</div>`;
+      list.appendChild(el);
+    }
+    document.getElementById('board-count').textContent =
+      `${rows.length} of ${G.totalPlayers} players`;
+    document.getElementById('board-status').textContent = haveAllResults()
+      ? 'All results are in!'
+      : 'Listening for other players…';
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"]/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  }
+
+  /* ================= MODE ENTRY POINTS ================= */
+  function goHome() {
+    if (countdownId) { clearInterval(countdownId); countdownId = null; }
+    broadcasting = false;
+    boardVisible = false;
+    G.waitingForSeed = false;
+    stopAudio();
+    show('start');
+  }
+
+  function startSolo() {
+    G.mode = 'solo';
+    G.role = null;
+    G.seed = Math.floor(Math.random() * 0x7FFFFFFF);
+    G.totalRounds = 1;
+    G.round = 0;
+    startRound();
+  }
+
+  async function startHost() {
+    const players = parseInt(document.getElementById('players-val').textContent, 10);
+    const rounds = parseInt(document.getElementById('rounds-val').textContent, 10);
+    const status = document.getElementById('host-status');
+    status.className = 'status';
+    status.textContent = 'Starting sound…';
+    try {
+      await ensureAudio();
+      await startListening();
+    } catch (err) {
+      status.className = 'status error';
+      status.textContent = 'Microphone needed to play together: ' + err.message;
+      return;
+    }
+    G.mode = 'mp';
+    G.role = 'host';
+    G.gameId = randId();
+    G.seed = Math.floor(Math.random() * 0x7FFFFFFF);
+    G.totalPlayers = players;
+    G.totalRounds = rounds;
+    G.round = 0;
+    G.myPid = randId();
+    G.myScores = [];
+    results = {};
+    const msg = encodeSeed();
+    for (let i = 0; i < 3; i++) {
+      status.textContent = `Broadcasting game… (${i + 1}/3)`;
+      await transmit(msg);
+      await sleep(500);
+    }
+    startRound();
+  }
+
+  async function startJoin() {
+    const status = document.getElementById('join-status');
+    status.className = 'status';
+    status.textContent = 'Starting sound…';
+    show('mpjoin');
+    try {
+      await ensureAudio();
+      await startListening();
+    } catch (err) {
+      status.className = 'status error';
+      status.textContent = 'Microphone needed to play together: ' + err.message;
+      return;
+    }
+    status.textContent = '';
+    G.mode = 'mp';
+    G.role = 'join';
+    G.gameId = '';
+    G.myPid = randId();
+    G.myScores = [];
+    results = {};
+    G.waitingForSeed = true;
+  }
+
+  /* ================= UI WIRING ================= */
+  document.getElementById('btn-solo').addEventListener('click', startSolo);
+  document.getElementById('btn-mp').addEventListener('click', () => {
+    document.getElementById('name-input').value = G.myName || '';
+    show('mpname');
+  });
   document.getElementById('btn-submit').addEventListener('click', submitGuess);
-  document.getElementById('btn-again').addEventListener('click', startGame);
-  document.getElementById('btn-home').addEventListener('click', () => show('start'));
+  document.getElementById('btn-board-home').addEventListener('click', goHome);
+
+  document.querySelectorAll('[data-home]').forEach(b =>
+    b.addEventListener('click', goHome));
+
+  function readName() {
+    const v = document.getElementById('name-input').value
+      .replace(/[~,]/g, '').trim().slice(0, 10);
+    return v;
+  }
+
+  document.getElementById('btn-host').addEventListener('click', () => {
+    const name = readName();
+    if (!name) { document.getElementById('name-input').focus(); return; }
+    G.myName = name;
+    document.getElementById('host-status').textContent = '';
+    show('mphost');
+  });
+  document.getElementById('btn-join').addEventListener('click', () => {
+    const name = readName();
+    if (!name) { document.getElementById('name-input').focus(); return; }
+    G.myName = name;
+    startJoin();
+  });
+  document.getElementById('btn-broadcast').addEventListener('click', startHost);
+
+  // steppers
+  const stepLimits = { players: [2, 12], rounds: [1, 10] };
+  document.querySelectorAll('.stepper').forEach(st => {
+    const target = st.dataset.target;
+    const valEl = document.getElementById(target + '-val');
+    st.querySelectorAll('.step-btn').forEach(btn =>
+      btn.addEventListener('click', () => {
+        let v = parseInt(valEl.textContent, 10);
+        v += btn.dataset.act === 'inc' ? 1 : -1;
+        const [lo, hi] = stepLimits[target];
+        v = Math.max(lo, Math.min(hi, v));
+        valEl.textContent = v;
+      }));
+  });
 
   [hueSlider, satSlider, litSlider].forEach(s =>
     s.addEventListener('input', updateGuess));
-
   updateGuess();
 
   if ('serviceWorker' in navigator) {
