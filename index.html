@@ -239,6 +239,54 @@
     background: #000;
   }
   .scan-frame video { width: 100%; height: 100%; object-fit: cover; }
+  #scan-collected {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    max-width: 320px;
+    margin-bottom: 10px;
+    min-height: 1px;
+  }
+  .chip {
+    background: #2a2a3e;
+    color: #bfe9e0;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  .chip.new {
+    background: #1dd1a1;
+    color: #04382c;
+    animation: chippop 0.5s ease-out;
+  }
+  @keyframes chippop {
+    0% { transform: scale(0.3); }
+    60% { transform: scale(1.18); }
+    100% { transform: scale(1); }
+  }
+  #scan-flash {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 5;
+  }
+  #scan-flash.on { animation: flashpop 1.05s ease-out; }
+  @keyframes flashpop {
+    0% { opacity: 0; background: rgba(29,209,161,0); }
+    12% { opacity: 1; background: rgba(29,209,161,0.95); }
+    72% { opacity: 1; background: rgba(29,209,161,0.95); }
+    100% { opacity: 0; background: rgba(29,209,161,0); }
+  }
+  #scan-flash-icon { font-size: 5rem; line-height: 1; color: #04382c; }
+  #scan-flash-text { font-size: 1.4rem; font-weight: 800; color: #04382c; text-align: center; padding: 0 16px; }
 
   /* Show color screen */
   #show { align-items: center; justify-content: center; }
@@ -521,8 +569,10 @@
     <h2 id="scan-title">Scan</h2>
     <div class="scan-frame"><video id="scan-video" playsinline muted></video></div>
     <p class="sub" id="scan-hint">Point the camera at the other phone's QR code.</p>
+    <div id="scan-collected"></div>
     <div class="status" id="scan-status"></div>
     <button class="secondary" id="scan-done">Done</button>
+    <div id="scan-flash"><div id="scan-flash-icon">&#10003;</div><div id="scan-flash-text"></div></div>
   </section>
 
   <section id="show" class="screen">
@@ -796,18 +846,74 @@
     }
   }
 
-  const Scan = { stream: null, raf: null, active: false };
+  const Scan = { stream: null, raf: null, active: false, lastText: '' };
+
+  /* ---- scan feedback: haptic + sound + visual ---- */
+  let fbCtx = null;
+  function initFeedback() {
+    if (!fbCtx) {
+      const C = window.AudioContext || window.webkitAudioContext;
+      if (C) fbCtx = new C();
+    }
+    if (fbCtx && fbCtx.state === 'suspended') fbCtx.resume();
+  }
+  function successBeep() {
+    if (!fbCtx) return;
+    const t = fbCtx.currentTime;
+    [880, 1320].forEach((freq, i) => {
+      const osc = fbCtx.createOscillator();
+      const gain = fbCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const s = t + i * 0.09;
+      gain.gain.setValueAtTime(0.0001, s);
+      gain.gain.exponentialRampToValueAtTime(0.3, s + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, s + 0.13);
+      osc.connect(gain);
+      gain.connect(fbCtx.destination);
+      osc.start(s);
+      osc.stop(s + 0.16);
+    });
+  }
+  function successFeedback() {
+    if (navigator.vibrate) { try { navigator.vibrate([35, 30, 35]); } catch (e) {} }
+    successBeep();
+  }
+  function flashScanSuccess(label) {
+    const f = document.getElementById('scan-flash');
+    document.getElementById('scan-flash-text').textContent = label;
+    f.classList.remove('on');
+    void f.offsetWidth;        // restart the animation
+    f.classList.add('on');
+  }
+  function renderCollected(newNames) {
+    const el = document.getElementById('scan-collected');
+    const fresh = newNames || [];
+    el.innerHTML = '';
+    Object.keys(results).forEach(pid => {
+      const chip = document.createElement('span');
+      chip.className = 'chip' + (fresh.indexOf(results[pid].name) >= 0 ? ' new' : '');
+      chip.textContent = results[pid].name;
+      el.appendChild(chip);
+    });
+  }
+
   function stopScan() {
     Scan.active = false;
     if (Scan.raf) cancelAnimationFrame(Scan.raf);
     Scan.raf = null;
     if (Scan.stream) Scan.stream.getTracks().forEach(t => t.stop());
     Scan.stream = null;
+    Scan.lastText = '';
   }
   async function startScan(title, hint, onResult, doneLabel, doneFn) {
     document.getElementById('scan-title').textContent = title;
     document.getElementById('scan-hint').textContent = hint;
     document.getElementById('scan-status').textContent = '';
+    document.getElementById('scan-flash').classList.remove('on');
+    Scan.lastText = '';
+    renderCollected([]);
+    initFeedback();
     const doneBtn = document.getElementById('scan-done');
     doneBtn.textContent = doneLabel;
     doneBtn.onclick = () => { stopScan(); doneFn(); };
@@ -839,7 +945,10 @@
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const code = jsQR(img.data, img.width, img.height);
-          if (code && code.data && onResult(code.data)) { stopScan(); return; }
+          if (code && code.data && code.data !== Scan.lastText) {
+            Scan.lastText = code.data;
+            if (onResult(code.data)) { stopScan(); return; }
+          }
         }
       }
       Scan.raf = requestAnimationFrame(tick);
@@ -898,18 +1007,21 @@
     return null;
   }
 
+  // Returns an array of newly added player names, or null if not a
+  // results code for this game.
   function mergeGossip(text) {
     const p = text.split('~');
-    if (p[0] !== 'G' || p.length < 3) return -1;
-    if (!G.gameId || p[1] !== G.gameId) return -1;
-    let added = 0;
+    if (p[0] !== 'G' || p.length < 3) return null;
+    if (!G.gameId || p[1] !== G.gameId) return null;
+    const added = [];
     p[2].split('|').forEach(entry => {
       const f = entry.split(':');
       if (f.length < 3) return;
       const scores = f[2].split(',').map(n => parseInt(n, 10)).filter(n => !isNaN(n));
       if (!scores.length) return;
-      if (!results[f[0]]) added++;
-      results[f[0]] = { name: f[1] || '?', scores: scores };
+      const name = f[1] || '?';
+      if (!results[f[0]]) added.push(name);
+      results[f[0]] = { name: name, scores: scores };
     });
     return added;
   }
@@ -1098,11 +1210,22 @@
         startScan('Scan a player',
           "Point the camera at another player's results code.",
           (text) => {
-            const added = mergeGossip(text);
+            const fresh = mergeGossip(text);
             const st = document.getElementById('scan-status');
-            if (added > 0) st.textContent = `Added! ${Object.keys(results).length} players collected.`;
-            else if (added === 0) st.textContent = 'Already had that player.';
-            else st.textContent = 'Not a results code for this game.';
+            st.className = 'status';
+            if (fresh === null) {
+              st.textContent = 'That code is not for this game.';
+            } else if (fresh.length > 0) {
+              successFeedback();
+              flashScanSuccess(fresh.length === 1
+                ? fresh[0] + ' added!'
+                : fresh.length + ' players added!');
+              renderCollected(fresh);
+              const n = Object.keys(results).length;
+              st.textContent = n + (n === 1 ? ' player collected' : ' players collected');
+            } else {
+              st.textContent = 'Already collected — point at another player.';
+            }
             return false;
           },
           'Done', () => showBoard()));
@@ -1197,7 +1320,11 @@
         "Point the camera at the host's QR code.",
         (text) => {
           const s = parseSeedText(text);
-          if (s) { applySeed(s.gameId, s.seed, s.rounds); return true; }
+          if (s) {
+            successFeedback();
+            applySeed(s.gameId, s.seed, s.rounds);
+            return true;
+          }
           return false;
         },
         'Cancel', goHome);
