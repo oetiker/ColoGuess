@@ -269,6 +269,20 @@
     -webkit-backdrop-filter: blur(8px);
     z-index: 2;
   }
+  #show .hint {
+    position: absolute;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 28px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.4);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 2;
+  }
 
   /* Guess screen */
   #guess { flex-direction: column; }
@@ -466,12 +480,7 @@
     <p class="sub">A color flashes briefly. Recreate it with the hue, saturation and lightness sliders.</p>
     <button class="primary" id="btn-mp">Play with friends</button>
     <button class="secondary" id="btn-solo">Solo practice</button>
-    <div class="seg-label">How phones connect</div>
-    <div class="seg" id="mode-seg">
-      <button data-v="audible">Audible</button>
-      <button data-v="ultrasound">Ultrasonic</button>
-      <button data-v="qr">QR codes</button>
-    </div>
+    <div class="seg-label" id="solo-best" style="display:none;"></div>
   </section>
 
   <section id="mpname" class="screen centered">
@@ -480,6 +489,12 @@
     <div class="field">
       <label for="name-input">Your name</label>
       <input type="text" id="name-input" maxlength="10" placeholder="e.g. Alex" autocomplete="off">
+    </div>
+    <div class="seg-label" id="mode-label">How phones connect</div>
+    <div class="seg" id="mode-seg">
+      <button data-v="audible">Audible</button>
+      <button data-v="ultrasound">Ultrasonic</button>
+      <button data-v="qr">QR codes</button>
     </div>
     <button class="primary" id="btn-host">Host a game</button>
     <button class="secondary" id="btn-join">Join a game</button>
@@ -528,6 +543,7 @@
   <section id="show" class="screen">
     <div class="label" id="show-label">Memorize</div>
     <div class="timer" id="timer">5</div>
+    <div class="hint" id="show-hint">Tap when you&rsquo;ve got it</div>
   </section>
 
   <section id="guess" class="screen">
@@ -674,6 +690,35 @@
     if (score >= 70) return { text: 'Good', bg: '#feca57', color: '#420' };
     if (score >= 50) return { text: 'Close', bg: '#ff9f43', color: '#420' };
     return { text: 'Off', bg: '#ff6b6b', color: '#400' };
+  }
+
+  const SOLO_ROUNDS = 5;
+  function bestKey() { return 'cg-best-' + SOLO_ROUNDS; }
+  function readBest() { return parseInt(localStorage.getItem(bestKey()), 10) || 0; }
+  function updateBest(total) {
+    const best = Math.max(readBest(), total);
+    try { localStorage.setItem(bestKey(), best); } catch (e) {}
+    refreshHome();
+    return best;
+  }
+  function refreshHome() {
+    const el = document.getElementById('solo-best');
+    const best = readBest();
+    if (best > 0) {
+      el.style.display = '';
+      el.textContent = `Best solo run · ${best} / ${SOLO_ROUNDS * 100}`;
+    } else {
+      el.style.display = 'none';
+    }
+  }
+  function animateScore(to) {
+    const dur = 450, start = performance.now();
+    (function frame(now) {
+      const t = Math.min(1, (now - start) / dur);
+      scoreEl.textContent = Math.round(to * (1 - Math.pow(1 - t, 3)));
+      if (t < 1) requestAnimationFrame(frame);
+      else scoreEl.textContent = to;
+    })(start);
   }
 
   /* ---------- connection mode setting ---------- */
@@ -1007,9 +1052,10 @@
   function submitGuess() {
     const g = currentGuess();
     const score = computeScore(G.target, g);
-    if (G.mode === 'mp') G.myScores.push(score);
+    G.myScores.push(score);
+    if (navigator.vibrate) { try { navigator.vibrate(score >= 85 ? [15, 30, 15] : 12); } catch (e) {} }
 
-    scoreEl.textContent = score;
+    animateScore(score);
     const gr = gradeFor(score);
     gradeEl.textContent = gr.text;
     gradeEl.style.background = gr.bg;
@@ -1020,13 +1066,17 @@
       `Target: H ${G.target.h}, S ${G.target.s}, L ${G.target.l}<br>` +
       `Yours: H ${g.h}, S ${g.s}, L ${g.l}`;
 
+    const total = G.myScores.reduce((a, b) => a + b, 0);
     if (G.mode === 'mp') {
-      const total = G.myScores.reduce((a, b) => a + b, 0);
       labelScoreEl.textContent = 'this round';
       mpProgressEl.textContent = `Round ${G.round + 1} of ${G.totalRounds} · Your total ${total}`;
+    } else if (G.round >= G.totalRounds - 1) {
+      const best = updateBest(total);
+      labelScoreEl.textContent = 'this round';
+      mpProgressEl.textContent = `Run complete · Total ${total} · Best ${best}`;
     } else {
-      labelScoreEl.textContent = 'out of 100';
-      mpProgressEl.textContent = '';
+      labelScoreEl.textContent = 'this round';
+      mpProgressEl.textContent = `Round ${G.round + 1} of ${G.totalRounds} · Total ${total}`;
     }
     renderResultActions();
     show('result');
@@ -1035,8 +1085,12 @@
   function renderResultActions() {
     resultActions.innerHTML = '';
     if (G.mode === 'solo') {
-      mkButton(resultActions, 'Home', 'home', goHome);
-      mkButton(resultActions, 'Play again', 'play-again', startSolo);
+      if (G.round < G.totalRounds - 1) {
+        mkButton(resultActions, 'Next round', 'play-again', () => { G.round++; startRound(); });
+      } else {
+        mkButton(resultActions, 'Home', 'home', goHome);
+        mkButton(resultActions, 'Play again', 'play-again', startSolo);
+      }
     } else if (G.round < G.totalRounds - 1) {
       mkButton(resultActions, 'Next round', 'play-again', () => { G.round++; startRound(); });
     } else {
@@ -1138,8 +1192,9 @@
     G.mode = 'solo';
     G.role = null;
     G.seed = Math.floor(Math.random() * 0x7FFFFFFF);
-    G.totalRounds = 1;
+    G.totalRounds = SOLO_ROUNDS;
     G.round = 0;
+    G.myScores = [];
     startRound();
   }
 
@@ -1242,6 +1297,8 @@
       ? 'Enter your name to join the game.'
       : 'Everyone gets the same colors. Phones share the game over sound or QR codes — no internet needed.';
     document.getElementById('btn-host').style.display = invited ? 'none' : '';
+    document.getElementById('mode-label').style.display = invited ? 'none' : '';
+    document.getElementById('mode-seg').style.display = invited ? 'none' : '';
     document.getElementById('btn-join').textContent = invited ? 'Join the game' : 'Join a game';
     document.getElementById('name-input').value = G.myName || '';
     show('mpname');
@@ -1298,6 +1355,17 @@
   [hueSlider, satSlider, litSlider].forEach(s =>
     s.addEventListener('input', updateGuess));
   updateGuess();
+
+  // Tap the reveal screen to stop memorizing early and start guessing.
+  showEl.addEventListener('click', () => {
+    if (screens.show.classList.contains('active') && countdownId) {
+      clearInterval(countdownId);
+      countdownId = null;
+      goToGuess();
+    }
+  });
+
+  refreshHome();
 
   /* ---------- handle a join link in the URL ---------- */
   (function checkJoinLink() {
