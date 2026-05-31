@@ -786,12 +786,27 @@
     const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
     return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
   }
+  // Hue warp (from human-judgment calibration): redistributes the hue wheel so
+  // that equal *perceived* steps span equal degrees. Raw HSL hue is perceptually
+  // lumpy — big stretches of near-identical blues, abrupt jumps elsewhere — so we
+  // remap hue through this curve before measuring distance. Display still uses the
+  // real hue; only the distance calc sees the warped value.
+  const HUE_WARP = [[0,0],[30,33.7],[60,73.03],[90,105.28],[120,125.74],[150,142.73],[180,164.27],[210,201.47],[240,243.25],[270,278.14],[300,309.4],[330,334.36],[360,360]];
+  function warpHue(h) {
+    h = ((h % 360) + 360) % 360;
+    for (let i = 0; i < HUE_WARP.length - 1; i++) {
+      const [h0, w0] = HUE_WARP[i], [h1, w1] = HUE_WARP[i + 1];
+      if (h >= h0 && h <= h1) return w0 + (w1 - w0) * (h - h0) / (h1 - h0);
+    }
+    return h;
+  }
   // Perceptual color distance ("redmean") — a cheap approximation that weights
   // the R/G/B channels the way the eye does, so the score tracks how different
   // two colors actually *look*. See https://www.compuphase.com/cmetric.htm
+  // Hue is warped first (see warpHue) so equal degrees count as equal perception.
   function colorDistance(a, b) {
-    const [r1, g1, b1] = hslToRgb(a.h, a.s, a.l);
-    const [r2, g2, b2] = hslToRgb(b.h, b.s, b.l);
+    const [r1, g1, b1] = hslToRgb(warpHue(a.h), a.s, a.l);
+    const [r2, g2, b2] = hslToRgb(warpHue(b.h), b.s, b.l);
     const rbar = (r1 + r2) / 2;
     const dr = r1 - r2, dg = g1 - g2, db = b1 - b2;
     return Math.sqrt(
@@ -799,12 +814,15 @@
       4 * dg * dg +
       (2 + (255 - rbar) / 256) * db * db);
   }
-  // Largest perceived difference there can be: pure black vs pure white.
-  const MAX_DISTANCE = colorDistance({ h: 0, s: 0, l: 0 }, { h: 0, s: 0, l: 100 });
+  // Distance at which the score bottoms out at 0. Calibration showed players stop
+  // perceiving "how close" well before black-vs-white, so the scale tops out here
+  // (the hue-axis cutoff alone is ≈ 286) rather than at the full ≈ 442 max.
+  const SCORE_CEILING = 275;
   // Score is a straight 0–100 "% match": 100 = identical, 0 = as far apart as
-  // black and white. No hidden multiplier, so the number means what it says.
+  // people can meaningfully judge. No hidden multiplier, so the number means what
+  // it says.
   function computeScore(a, b) {
-    return Math.max(0, Math.round(100 * (1 - colorDistance(a, b) / MAX_DISTANCE)));
+    return Math.max(0, Math.round(100 * (1 - colorDistance(a, b) / SCORE_CEILING)));
   }
   function gradeFor(score) {
     if (score >= 98) return { text: 'Pixel perfect', bg: '#1dd1a1', color: '#062' };

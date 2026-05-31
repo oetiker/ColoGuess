@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#111111">
+<title>ColoGuess · Color Calibration</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%; width: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #111; color: #eee; user-select: none; -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  #app { position: fixed; inset: 0; display: flex; flex-direction: column; }
+  header {
+    padding: calc(env(safe-area-inset-top,0px) + 8px) 14px 8px;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+  header .title { font-size: 0.95rem; font-weight: 700; }
+  header .count { font-size: 0.8rem; opacity: 0.7; font-variant-numeric: tabular-nums; }
+  header .fit-state { font-size: 0.72rem; opacity: 0.55; }
+
+  .pairs { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 6px 12px; min-height: 0; }
+  .pair {
+    flex: 1; display: flex; gap: 8px; border-radius: 16px; overflow: hidden;
+    position: relative; min-height: 0; outline: 2px solid transparent;
+    transition: outline-color 0.12s;
+  }
+  .pair .sw { flex: 1; }
+  .pair .badge {
+    position: absolute; top: 8px; left: 8px;
+    background: rgba(0,0,0,0.5); color: #fff; font-size: 0.75rem; font-weight: 700;
+    padding: 4px 10px; border-radius: 999px; backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  .vs {
+    text-align: center; font-size: 0.7rem; letter-spacing: 1px; opacity: 0.4;
+    text-transform: uppercase; margin: -4px 0;
+  }
+
+  .controls { padding: 8px 12px calc(env(safe-area-inset-bottom,0px) + 12px); }
+  .row { display: flex; gap: 8px; margin-bottom: 8px; }
+  button {
+    flex: 1; border: none; border-radius: 12px; padding: 14px 6px;
+    font-size: 0.9rem; font-weight: 600; cursor: pointer; color: #eee; background: #2a2a3e;
+  }
+  button:active { transform: scale(0.97); }
+  button.primary { background: #fff; color: #111; }
+  button.warn { background: #3a2a2e; color: #ffb3b3; }
+  button.small { flex: 0 0 auto; padding: 14px 16px; font-size: 0.85rem; }
+  .hint { text-align: center; font-size: 0.75rem; opacity: 0.5; margin-bottom: 8px; line-height: 1.4; }
+
+  /* results panel */
+  #panel {
+    position: fixed; inset: 0; background: #14141f; z-index: 10;
+    display: none; flex-direction: column; padding: calc(env(safe-area-inset-top,0px) + 16px) 16px 16px;
+    overflow-y: auto;
+  }
+  #panel.show { display: flex; }
+  #panel h2 { font-size: 1.2rem; margin-bottom: 6px; }
+  #panel p { font-size: 0.85rem; opacity: 0.75; line-height: 1.5; margin-bottom: 12px; }
+  canvas { width: 100%; background: #0c0c14; border-radius: 12px; margin-bottom: 12px; display: block; }
+  pre {
+    background: #0c0c14; border: 1px solid #2a2a3e; border-radius: 12px;
+    padding: 12px; font-size: 0.72rem; line-height: 1.4; overflow-x: auto;
+    white-space: pre-wrap; word-break: break-word; user-select: text; -webkit-user-select: text;
+    margin-bottom: 12px;
+  }
+  .legend { font-size: 0.78rem; opacity: 0.8; margin-bottom: 10px; }
+  .legend b.h { color: #48dbfb; } .legend b.l { color: #feca57; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <span class="title">Color Calibration</span>
+    <span class="count" id="count">0 judged</span>
+    <span class="fit-state" id="fitstate"></span>
+  </header>
+
+  <div class="pairs">
+    <div class="pair" id="pairA">
+      <div class="sw" id="a1"></div><div class="sw" id="a2"></div>
+      <div class="badge">TOP</div>
+    </div>
+    <div class="vs">which pair's two colors look closer together?</div>
+    <div class="pair" id="pairB">
+      <div class="sw" id="b1"></div><div class="sw" id="b2"></div>
+      <div class="badge">BOTTOM</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="hint">Tap the pair whose two colors are more similar. Use “too far” when a pair’s colors are so different the comparison is meaningless.</div>
+    <div class="row">
+      <button class="primary" data-j="A">Top is closer</button>
+      <button class="primary" data-j="B">Bottom is closer</button>
+    </div>
+    <div class="row">
+      <button data-j="E">Equally close</button>
+    </div>
+    <div class="row">
+      <button class="warn" data-j="Aout">Top too far</button>
+      <button class="warn" data-j="Bout">Bottom too far</button>
+      <button class="warn" data-j="both">Both too far</button>
+    </div>
+    <div class="row">
+      <button class="small" id="btn-results">Results &amp; params</button>
+      <button class="small" id="btn-skip">Skip</button>
+    </div>
+  </div>
+</div>
+
+<div id="panel">
+  <h2>Calibration results</h2>
+  <p id="panel-sub"></p>
+  <div class="legend">Curves around the hue circle — <b class="h">hue weight wH(h)</b> (how much a hue change counts) and <b class="l">lightness weight wL(h)</b> (how much a brightness change counts), normalized to mean 1.</div>
+  <canvas id="chart" width="700" height="260"></canvas>
+  <pre id="params"></pre>
+  <div class="row">
+    <button class="primary" id="btn-copy">Copy params</button>
+    <button class="small" id="btn-copydata">Copy raw data</button>
+  </div>
+  <div class="row">
+    <button id="btn-resume">Keep judging</button>
+    <button class="warn" id="btn-reset">Reset all</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  /* ===================== color math ===================== */
+  function hslToRgb(h,s,l){s/=100;l/=100;const k=n=>(n+h/30)%12;const a=s*Math.min(l,1-l);
+    const f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));
+    return [f(0)*255,f(8)*255,f(4)*255];}
+  function srgbToLin(c){c/=255;return c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4);}
+  function rgbToLab(r,g,b){const R=srgbToLin(r),G=srgbToLin(g),B=srgbToLin(b);
+    let X=R*0.4124+G*0.3576+B*0.1805,Y=R*0.2126+G*0.7152+B*0.0722,Z=R*0.0193+G*0.1192+B*0.9505;
+    X/=0.95047;Z/=1.08883;const f=t=>t>0.008856?Math.cbrt(t):7.787*t+16/116;
+    const fx=f(X),fy=f(Y),fz=f(Z);return [116*fy-16,500*(fx-fy),200*(fy-fz)];}
+  const labOf=c=>rgbToLab(...hslToRgb(c.h,c.s,c.l));
+  function comps(c1,c2){const A=labOf(c1),Bl=labOf(c2);
+    const C1=Math.hypot(A[1],A[2]),C2=Math.hypot(Bl[1],Bl[2]);
+    const dL=Bl[0]-A[0],dC=C2-C1;
+    const dE2=Math.pow(Bl[0]-A[0],2)+Math.pow(Bl[1]-A[1],2)+Math.pow(Bl[2]-A[2],2);
+    const dH=Math.sqrt(Math.max(0,dE2-dL*dL-dC*dC));
+    let hb=Math.atan2((A[2]+Bl[2])/2,(A[1]+Bl[1])/2)*180/Math.PI; if(hb<0)hb+=360;
+    return {dL,dC,dH,hb};}
+  const ANCH=[0,60,120,180,240,300];
+  function interp(anch,h){h=((h%360)+360)%360;const seg=h/60,i=Math.floor(seg)%6,f=seg-Math.floor(seg);
+    return anch[i]*(1-f)+anch[(i+1)%6]*f;}
+  function dist(c,P){
+    const wL=Math.exp(interp(P.lL,c.hb)),wH=Math.exp(interp(P.lH,c.hb)),wC=Math.exp(P.lC);
+    const L=wL*c.dL,Cc=wC*c.dC,H=wH*c.dH;return Math.sqrt(L*L+Cc*Cc+H*H);}
+
+  /* ===================== model fit ===================== */
+  const ST=1.2; // out-of-raster softness (fixed)
+  const sig=z=>1/(1+Math.exp(-Math.max(-40,Math.min(40,z))));
+  function newParams(){return {lH:ANCH.map(()=>0),lL:ANCH.map(()=>Math.log(0.5)),lC:Math.log(0.6),ldelta:Math.log(0.6),ltau:Math.log(20)};}
+  function recNLL(r,P){
+    const cA=r.cA,cB=r.cB,DA=dist(cA,P),DB=dist(cB,P);
+    const tau=Math.exp(P.ltau),delta=Math.exp(P.ldelta);
+    const ir=function(D){return -Math.log(Math.max(sig((tau-D)/ST),1e-9));};
+    const oo=function(D){return -Math.log(Math.max(sig((D-tau)/ST),1e-9));};
+    if(r.out==='Aout')return oo(DA)+ir(DB);
+    if(r.out==='Bout')return oo(DB)+ir(DA);
+    if(r.out==='both')return oo(DA)+oo(DB);
+    const z=DB-DA,pA=sig(z-delta),pB=sig(-z-delta);let pE=1-pA-pB;if(pE<1e-6)pE=1e-6;
+    let cmp;if(r.out==='A')cmp=-Math.log(Math.max(pA,1e-9));
+    else if(r.out==='B')cmp=-Math.log(Math.max(pB,1e-9));
+    else cmp=-Math.log(pE);
+    return cmp+ir(DA)+ir(DB);}
+  function totalNLL(data,P){let s=0;for(var i=0;i<data.length;i++)s+=recNLL(data[i],P);
+    const sm=function(a){let t=0;for(let i=0;i<6;i++){t+=Math.pow(a[(i+5)%6]-2*a[i]+a[(i+1)%6],2);}return t;};
+    s+=8*sm(P.lH)+8*sm(P.lL);
+    for(let i=0;i<6;i++){s+=2*P.lH[i]*P.lH[i];s+=2*Math.pow(P.lL[i]-Math.log(0.5),2);}
+    return s;}
+  function flat(P){return [P.lH[0],P.lH[1],P.lH[2],P.lH[3],P.lH[4],P.lH[5],P.lL[0],P.lL[1],P.lL[2],P.lL[3],P.lL[4],P.lL[5],P.lC,P.ldelta,P.ltau];}
+  function unflat(x){return {lH:x.slice(0,6),lL:x.slice(6,12),lC:x[12],ldelta:x[13],ltau:x[14]};}
+  function fit(data,init,iters){
+    let x=flat(init);const n=x.length;let m=Array(n).fill(0),v=Array(n).fill(0);
+    const lr=0.05,b1=0.9,b2=0.999,eps=1e-8,h=1e-4;
+    for(let k=0;k<data.length;k++){data[k].cA=comps(data[k].a1,data[k].a2);data[k].cB=comps(data[k].b1,data[k].b2);}
+    for(let t=1;t<=iters;t++){
+      const base=totalNLL(data,unflat(x));const g=Array(n).fill(0);
+      for(let i=0;i<n;i++){const xi=x[i];x[i]=xi+h;g[i]=(totalNLL(data,unflat(x))-base)/h;x[i]=xi;}
+      for(let i=0;i<n;i++){m[i]=b1*m[i]+(1-b1)*g[i];v[i]=b2*v[i]+(1-b2)*g[i]*g[i];
+        x[i]-=lr*(m[i]/(1-Math.pow(b1,t)))/(Math.sqrt(v[i]/(1-Math.pow(b2,t)))+eps);}
+    }
+    return unflat(x);}
+
+  /* ===================== state ===================== */
+  let data=[]; let params=newParams();
+  try{const s=localStorage.getItem('cg-calib-data');if(s)data=JSON.parse(s);}catch(e){}
+  try{const p=localStorage.getItem('cg-calib-params');if(p)params=JSON.parse(p);}catch(e){}
+  let current=null;
+  const hueCount=Array(6).fill(0);
+  data.forEach(function(r){const cA=comps(r.a1,r.a2);hueCount[Math.floor((((cA.hb%360)+360)%360)/60)%6]++;});
+
+  function save(){try{localStorage.setItem('cg-calib-data',JSON.stringify(data.map(function(r){return {a1:r.a1,a2:r.a2,b1:r.b1,b2:r.b2,out:r.out};})));
+    localStorage.setItem('cg-calib-params',JSON.stringify(params));}catch(e){}}
+
+  /* ===================== trial generation + active learning ===================== */
+  const rnd=(a,b)=>a+Math.random()*(b-a);
+  const ri=(a,b)=>Math.floor(rnd(a,b));
+  function base(h){return {h:h===undefined?ri(0,360):((h%360)+360)%360,s:ri(45,100),l:ri(30,70)};}
+  function pert(c,dh,ds,dl){return {h:(c.h+dh+360)%360,s:Math.min(100,Math.max(15,c.s+ds)),l:Math.min(88,Math.max(12,c.l+dl))};}
+  function makePair(type,h){
+    const b=base(h);
+    if(type==='hue')return [b,pert(b,(Math.random()<.5?-1:1)*rnd(8,40),0,0)];
+    if(type==='light')return [b,pert(b,0,0,(Math.random()<.5?-1:1)*rnd(8,32))];
+    if(type==='sat')return [b,pert(b,0,(Math.random()<.5?-1:1)*rnd(15,45),0)];
+    if(type==='far')return [base(),base()];
+    return [b,pert(b,(Math.random()<.5?-1:1)*rnd(6,28),0,(Math.random()<.5?-1:1)*rnd(6,22))];
+  }
+  function candidate(){
+    const roll=Math.random();
+    let tA,tB,hA,hB;
+    if(roll<0.34){tA='hue';tB='light';hA=ri(0,360);hB=ri(0,360);}
+    else if(roll<0.6){tA='hue';tB='hue';hA=ri(0,360);hB=ri(0,360);}
+    else if(roll<0.78){tA='light';tB='light';hA=ri(0,360);hB=ri(0,360);}
+    else if(roll<0.9){tA='sat';tB=Math.random()<.5?'hue':'light';hA=ri(0,360);hB=ri(0,360);}
+    else {tA='far';tB=Math.random()<.5?'hue':'light';hA=undefined;hB=ri(0,360);}
+    const A=makePair(tA,hA),B=makePair(tB,hB);
+    return {a1:A[0],a2:A[1],b1:B[0],b2:B[1]};
+  }
+  function predictEntropy(t,P){
+    const cA=comps(t.a1,t.a2),cB=comps(t.b1,t.b2);
+    const DA=dist(cA,P),DB=dist(cB,P),tau=Math.exp(P.ltau),delta=Math.exp(P.ldelta);
+    const pinA=sig((tau-DA)/ST),pinB=sig((tau-DB)/ST);
+    const z=DB-DA,pA=sig(z-delta),pB=sig(-z-delta);let pE=1-pA-pB;if(pE<0)pE=0;
+    const probs=[pinA*pinB*pA,pinA*pinB*pB,pinA*pinB*pE,(1-pinA)*pinB,pinA*(1-pinB),(1-pinA)*(1-pinB)];
+    let H=0;const sum=probs.reduce(function(a,b){return a+b;},0)||1;
+    for(let i=0;i<probs.length;i++){const q=probs[i]/sum;if(q>1e-9)H-=q*Math.log(q);}
+    return {H:H,hb:cA.hb};
+  }
+  function nextTrial(){
+    if(Math.random()<0.25){return candidate();}
+    let best=null,bestScore=-1;
+    for(let i=0;i<60;i++){
+      const t=candidate();const e=predictEntropy(t,params);
+      const bin=Math.floor((((e.hb%360)+360)%360)/60)%6;
+      const coverageBonus=1/(1+hueCount[bin]);
+      const score=e.H+0.3*coverageBonus;
+      if(score>bestScore){bestScore=score;best=t;}
+    }
+    return best;
+  }
+
+  /* ===================== UI ===================== */
+  const $=function(id){return document.getElementById(id);};
+  function paint(){
+    current=nextTrial();
+    $('a1').style.background='hsl('+current.a1.h+','+current.a1.s+'%,'+current.a1.l+'%)';
+    $('a2').style.background='hsl('+current.a2.h+','+current.a2.s+'%,'+current.a2.l+'%)';
+    $('b1').style.background='hsl('+current.b1.h+','+current.b1.s+'%,'+current.b1.l+'%)';
+    $('b2').style.background='hsl('+current.b2.h+','+current.b2.s+'%,'+current.b2.l+'%)';
+    $('count').textContent=data.length+' judged';
+  }
+  let fitTimer=null;
+  function scheduleFit(){
+    if(data.length<12){return;}
+    $('fitstate').textContent='fitting…';
+    clearTimeout(fitTimer);
+    fitTimer=setTimeout(function(){
+      params=fit(data,params,data.length<60?70:45);
+      save();$('fitstate').textContent='✓ fit';
+    },30);
+  }
+  function judge(out){
+    if(!current)return;
+    const cA=comps(current.a1,current.a2);
+    const bin=Math.floor((((cA.hb%360)+360)%360)/60)%6;hueCount[bin]++;
+    data.push({a1:current.a1,a2:current.a2,b1:current.b1,b2:current.b2,out:out});
+    save();scheduleFit();paint();
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('[data-j]'),function(b){b.addEventListener('click',function(){judge(b.dataset.j);});});
+  $('btn-skip').addEventListener('click',paint);
+
+  /* ===================== results panel ===================== */
+  function curve(logs){return ANCH.map(function(h){return Math.exp(interp(logs,h));});}
+  function norm(a){const m=a.reduce(function(x,y){return x+y;},0)/a.length||1;return a.map(function(x){return x/m;});}
+  function drawChart(){
+    const cv=$('chart'),ctx=cv.getContext('2d');const W=cv.width,H=cv.height,pad=30;
+    ctx.clearRect(0,0,W,H);
+    for(let x=pad;x<W-pad;x++){const h=(x-pad)/(W-2*pad)*360;ctx.fillStyle='hsl('+h+',70%,22%)';ctx.fillRect(x,H-pad,1,8);}
+    const wH=[],wL=[];for(let h=0;h<=360;h+=5){wH.push(Math.exp(interp(params.lH,h)));wL.push(Math.exp(interp(params.lL,h)));}
+    const all=wH.concat(wL),mx=Math.max.apply(null,all)*1.1,mn=0;
+    const X=function(h){return pad+(h/360)*(W-2*pad);};
+    const Y=function(val){return H-pad-((val-mn)/(mx-mn))*(H-2*pad);};
+    function plot(arr,color){ctx.strokeStyle=color;ctx.lineWidth=2.5;ctx.beginPath();
+      arr.forEach(function(v,i){const x=X(i*5),y=Y(v);if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y);});ctx.stroke();}
+    ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(pad,Y(1));ctx.lineTo(W-pad,Y(1));ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='11px sans-serif';ctx.fillText('1.0',2,Y(1)+4);
+    plot(wH,'#48dbfb');plot(wL,'#feca57');
+    ctx.fillStyle='rgba(255,255,255,0.5)';
+    [0,90,180,270,360].forEach(function(h){ctx.fillText(h+'°',X(h)-8,H-8);});
+  }
+  function showResults(){
+    if(data.length>=12){$('fitstate').textContent='fitting…';params=fit(data,params,200);save();$('fitstate').textContent='✓ fit';}
+    drawChart();
+    const wH=curve(params.lH),wL=curve(params.lL),wC=Math.exp(params.lC),tau=Math.exp(params.ltau);
+    const nH=norm(wH),nL=norm(wL);
+    $('panel-sub').textContent=data.length+' judgments. Hue weight peaks where small hue changes feel biggest; lightness weight peaks where brightness changes matter most.';
+    const fmt=function(a){return a.map(function(x){return x.toFixed(3);}).join(', ');};
+    $('params').textContent=
+'// ColoGuess perceptual weights (from '+data.length+' judgments)\n'+
+'// anchors at hue '+JSON.stringify(ANCH)+' (deg), linear-interp, periodic\n'+
+'const HUE_WEIGHT   = ['+fmt(wH)+'];   // wH(h), normalized: ['+fmt(nH)+']\n'+
+'const LIGHT_WEIGHT = ['+fmt(wL)+'];   // wL(h), normalized: ['+fmt(nL)+']\n'+
+'const CHROMA_WEIGHT = '+wC.toFixed(3)+';\n'+
+'const ZERO_POINT    = '+tau.toFixed(2)+';  // distance at which score hits 0';
+    $('panel').classList.add('show');
+  }
+  $('btn-results').addEventListener('click',showResults);
+  $('btn-resume').addEventListener('click',function(){$('panel').classList.remove('show');paint();});
+  $('btn-copy').addEventListener('click',function(){navigator.clipboard.writeText($('params').textContent).then(function(){$('btn-copy').textContent='Copied!';setTimeout(function(){$('btn-copy').textContent='Copy params';},1200);},function(){});});
+  $('btn-copydata').addEventListener('click',function(){navigator.clipboard.writeText(JSON.stringify(data.map(function(r){return {a1:r.a1,a2:r.a2,b1:r.b1,b2:r.b2,out:r.out};}))).then(function(){$('btn-copydata').textContent='Copied!';setTimeout(function(){$('btn-copydata').textContent='Copy raw data';},1200);},function(){});});
+  $('btn-reset').addEventListener('click',function(){if(confirm('Delete all '+data.length+' judgments?')){data=[];params=newParams();hueCount.fill(0);save();$('panel').classList.remove('show');paint();}});
+
+  paint();
+})();
+</script>
+</body>
+</html>
