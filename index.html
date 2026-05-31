@@ -47,6 +47,22 @@
   #start, #mpname, #mphost, #mpjoin, #qrshow, #qrscan {
     background: linear-gradient(135deg, #1a1a2e, #16213e);
   }
+  .logo { display: flex; flex-direction: column; align-items: center; margin-bottom: 8px; }
+  .logo-mark {
+    width: 104px;
+    height: 104px;
+    margin-bottom: 4px;
+    filter: drop-shadow(0 6px 22px rgba(72, 219, 251, 0.25));
+  }
+  /* Overlapping primaries mix additively on the dark backdrop — a color game in a mark. */
+  .logo-mark circle { mix-blend-mode: screen; }
+  .logo-q {
+    fill: #16213e;
+    font-size: 34px;
+    font-weight: 800;
+    text-anchor: middle;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
   h1 {
     font-size: 2.5rem;
     margin-bottom: 8px;
@@ -55,6 +71,7 @@
     background-clip: text;
     color: transparent;
   }
+  .explain { display: block; margin-top: 8px; opacity: 0.7; font-size: 0.8rem; }
   h2 { font-size: 1.6rem; margin-bottom: 8px; }
   .sub {
     opacity: 0.8;
@@ -476,10 +493,20 @@
 <div id="app">
 
   <section id="start" class="screen centered active">
-    <h1>ColoGuess</h1>
+    <div class="logo">
+      <svg class="logo-mark" viewBox="0 0 120 120" aria-hidden="true">
+        <circle cx="46" cy="44" r="30" fill="#ff4d6d"/>
+        <circle cx="74" cy="44" r="30" fill="#3ec6ff"/>
+        <circle cx="60" cy="72" r="30" fill="#ffd23f"/>
+        <text x="60" y="62" class="logo-q">?</text>
+      </svg>
+      <h1>ColoGuess</h1>
+    </div>
     <p class="sub">A color flashes briefly. Recreate it with the hue, saturation and lightness sliders.</p>
     <button class="primary" id="btn-mp">Play with friends</button>
+    <button class="secondary" id="btn-daily">Daily challenge</button>
     <button class="secondary" id="btn-solo">Solo practice</button>
+    <div class="seg-label" id="daily-status" style="display:none;"></div>
     <div class="seg-label" id="solo-best" style="display:none;"></div>
   </section>
 
@@ -507,9 +534,9 @@
     <div class="stepper-row">
       <span class="s-label">Rounds</span>
       <div class="stepper" data-target="rounds">
-        <button class="step-btn" data-act="dec">&minus;</button>
+        <button class="step-btn" data-act="dec" aria-label="Fewer rounds">&minus;</button>
         <span class="step-val" id="rounds-val">5</span>
-        <button class="step-btn" data-act="inc">+</button>
+        <button class="step-btn" data-act="inc" aria-label="More rounds">+</button>
       </div>
     </div>
     <button class="primary" id="btn-broadcast">Share the game</button>
@@ -554,19 +581,19 @@
     </div>
     <div class="controls">
       <div class="slider-row">
-        <label>H</label>
-        <input type="range" id="hue-slider" min="0" max="360" value="180">
-        <div class="val" id="hue-val">180</div>
+        <label aria-hidden="true">H</label>
+        <input type="range" id="hue-slider" min="0" max="360" value="180" aria-label="Hue">
+        <div class="val" id="hue-val" aria-hidden="true">180</div>
       </div>
       <div class="slider-row">
-        <label>S</label>
-        <input type="range" id="sat-slider" min="0" max="100" value="50">
-        <div class="val" id="sat-val">50</div>
+        <label aria-hidden="true">S</label>
+        <input type="range" id="sat-slider" min="0" max="100" value="50" aria-label="Saturation">
+        <div class="val" id="sat-val" aria-hidden="true">50</div>
       </div>
       <div class="slider-row">
-        <label>L</label>
-        <input type="range" id="lit-slider" min="0" max="100" value="50">
-        <div class="val" id="lit-val">50</div>
+        <label aria-hidden="true">L</label>
+        <input type="range" id="lit-slider" min="0" max="100" value="50" aria-label="Lightness">
+        <div class="val" id="lit-val" aria-hidden="true">50</div>
       </div>
       <div class="actions">
         <button class="submit" id="btn-submit">Submit</button>
@@ -676,23 +703,36 @@
     const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
     return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
   }
-  function computeScore(a, b) {
+  // Perceptual color distance ("redmean") — a cheap approximation that weights
+  // the R/G/B channels the way the eye does, so the score tracks how different
+  // two colors actually *look*. See https://www.compuphase.com/cmetric.htm
+  function colorDistance(a, b) {
     const [r1, g1, b1] = hslToRgb(a.h, a.s, a.l);
     const [r2, g2, b2] = hslToRgb(b.h, b.s, b.l);
+    const rbar = (r1 + r2) / 2;
     const dr = r1 - r2, dg = g1 - g2, db = b1 - b2;
-    const dist = Math.sqrt(dr*dr + dg*dg + db*db);
-    const maxDist = Math.sqrt(3) * 255;
-    return Math.max(0, Math.round(100 - (dist / maxDist) * 200));
+    return Math.sqrt(
+      (2 + rbar / 256) * dr * dr +
+      4 * dg * dg +
+      (2 + (255 - rbar) / 256) * db * db);
+  }
+  // Largest perceived difference there can be: pure black vs pure white.
+  const MAX_DISTANCE = colorDistance({ h: 0, s: 0, l: 0 }, { h: 0, s: 0, l: 100 });
+  // Score is a straight 0–100 "% match": 100 = identical, 0 = as far apart as
+  // black and white. No hidden multiplier, so the number means what it says.
+  function computeScore(a, b) {
+    return Math.max(0, Math.round(100 * (1 - colorDistance(a, b) / MAX_DISTANCE)));
   }
   function gradeFor(score) {
-    if (score >= 95) return { text: 'Pixel perfect', bg: '#1dd1a1', color: '#062' };
-    if (score >= 85) return { text: 'Excellent', bg: '#48dbfb', color: '#024' };
-    if (score >= 70) return { text: 'Good', bg: '#feca57', color: '#420' };
-    if (score >= 50) return { text: 'Close', bg: '#ff9f43', color: '#420' };
+    if (score >= 98) return { text: 'Pixel perfect', bg: '#1dd1a1', color: '#062' };
+    if (score >= 90) return { text: 'Excellent', bg: '#48dbfb', color: '#024' };
+    if (score >= 80) return { text: 'Good', bg: '#feca57', color: '#420' };
+    if (score >= 65) return { text: 'Close', bg: '#ff9f43', color: '#420' };
     return { text: 'Off', bg: '#ff6b6b', color: '#400' };
   }
 
   const SOLO_ROUNDS = 5;
+  const DAILY_ROUNDS = 5;
   function bestKey() { return 'cg-best-' + SOLO_ROUNDS; }
   function readBest() { return parseInt(localStorage.getItem(bestKey()), 10) || 0; }
   function updateBest(total) {
@@ -701,6 +741,41 @@
     refreshHome();
     return best;
   }
+
+  /* ---------- daily challenge ---------- */
+  // Everyone who plays on the same calendar day gets the same colors.
+  function dailyParts() {
+    const d = new Date();
+    return [d.getFullYear(), d.getMonth() + 1, d.getDate()];
+  }
+  function todayKey() {
+    const [y, m, day] = dailyParts();
+    return y + '-' + String(m).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+  }
+  function dailySeed() {
+    const [y, m, day] = dailyParts();
+    return y * 10000 + m * 100 + day;
+  }
+  function dailyNumber() {
+    const [y, m, day] = dailyParts();
+    const today = Date.UTC(y, m - 1, day);
+    return Math.round((today - Date.UTC(2024, 0, 1)) / 86400000) + 1;
+  }
+  function readDaily() {
+    try { return JSON.parse(localStorage.getItem('cg-daily-' + todayKey())); }
+    catch (e) { return null; }
+  }
+  // Records the first run of the day as the official result; replays are practice.
+  function saveDaily(total) {
+    if (!readDaily()) {
+      try {
+        localStorage.setItem('cg-daily-' + todayKey(),
+          JSON.stringify({ total: total, scores: G.myScores.slice() }));
+      } catch (e) {}
+    }
+    refreshHome();
+  }
+
   function refreshHome() {
     const el = document.getElementById('solo-best');
     const best = readBest();
@@ -709,6 +784,14 @@
       el.textContent = `Best solo run · ${best} / ${SOLO_ROUNDS * 100}`;
     } else {
       el.style.display = 'none';
+    }
+    const dEl = document.getElementById('daily-status');
+    const daily = readDaily();
+    if (daily) {
+      dEl.style.display = '';
+      dEl.textContent = `Today's daily · ${daily.total} / ${DAILY_ROUNDS * 100} · come back tomorrow`;
+    } else {
+      dEl.style.display = 'none';
     }
   }
   function animateScore(to) {
@@ -1004,7 +1087,7 @@
     boardVisible = false;
     G.target = colorForRound(G.seed, G.round);
     showEl.style.background = hsl(G.target);
-    showLabel.textContent = G.mode === 'mp'
+    showLabel.textContent = (G.mode === 'mp' || G.mode === 'daily')
       ? `Round ${G.round + 1} of ${G.totalRounds}`
       : 'Memorize';
     let remaining = 5;
@@ -1042,6 +1125,9 @@
     hueVal.textContent = g.h;
     satVal.textContent = g.s;
     litVal.textContent = g.l;
+    hueSlider.setAttribute('aria-valuetext', g.h + ' degrees');
+    satSlider.setAttribute('aria-valuetext', g.s + ' percent');
+    litSlider.setAttribute('aria-valuetext', g.l + ' percent');
     previewCurrent.style.background = hsl(g);
     satSlider.style.setProperty('--track',
       `linear-gradient(to right, hsl(${g.h}, 0%, ${g.l}%), hsl(${g.h}, 100%, ${g.l}%))`);
@@ -1062,20 +1148,28 @@
     gradeEl.style.color = gr.color;
     swatchTarget.style.background = hsl(G.target);
     swatchGuess.style.background = hsl(g);
+    labelScoreEl.textContent = '% match this round';
     detailsEl.innerHTML =
       `Target: H ${G.target.h}, S ${G.target.s}, L ${G.target.l}<br>` +
-      `Yours: H ${g.h}, S ${g.s}, L ${g.l}`;
+      `Yours: H ${g.h}, S ${g.s}, L ${g.l}<br>` +
+      `<span class="explain">Score = how close your color looks to the target ` +
+      `(0 = black-vs-white far apart, 100 = identical).</span>`;
 
     const total = G.myScores.reduce((a, b) => a + b, 0);
+    const isLast = G.round >= G.totalRounds - 1;
     if (G.mode === 'mp') {
-      labelScoreEl.textContent = 'this round';
       mpProgressEl.textContent = `Round ${G.round + 1} of ${G.totalRounds} · Your total ${total}`;
-    } else if (G.round >= G.totalRounds - 1) {
+    } else if (G.mode === 'daily') {
+      if (isLast) {
+        saveDaily(total);
+        mpProgressEl.textContent = `Daily #${dailyNumber()} complete · Total ${total} / ${G.totalRounds * 100}`;
+      } else {
+        mpProgressEl.textContent = `Round ${G.round + 1} of ${G.totalRounds} · Total ${total}`;
+      }
+    } else if (isLast) {
       const best = updateBest(total);
-      labelScoreEl.textContent = 'this round';
       mpProgressEl.textContent = `Run complete · Total ${total} · Best ${best}`;
     } else {
-      labelScoreEl.textContent = 'this round';
       mpProgressEl.textContent = `Round ${G.round + 1} of ${G.totalRounds} · Total ${total}`;
     }
     renderResultActions();
@@ -1084,18 +1178,45 @@
 
   function renderResultActions() {
     resultActions.innerHTML = '';
-    if (G.mode === 'solo') {
-      if (G.round < G.totalRounds - 1) {
-        mkButton(resultActions, 'Next round', 'play-again', () => { G.round++; startRound(); });
-      } else {
-        mkButton(resultActions, 'Home', 'home', goHome);
-        mkButton(resultActions, 'Play again', 'play-again', startSolo);
-      }
-    } else if (G.round < G.totalRounds - 1) {
-      mkButton(resultActions, 'Next round', 'play-again', () => { G.round++; startRound(); });
-    } else {
-      mkButton(resultActions, 'See leaderboard', 'play-again', finalizeMp);
+    const lastRound = G.round >= G.totalRounds - 1;
+    if (G.mode === 'mp') {
+      if (lastRound) mkButton(resultActions, 'See leaderboard', 'play-again', finalizeMp);
+      else mkButton(resultActions, 'Next round', 'play-again', () => { G.round++; startRound(); });
+      return;
     }
+    // solo + daily: always offer a way Home, plus the forward action.
+    if (!lastRound) {
+      mkButton(resultActions, 'Next round', 'play-again', () => { G.round++; startRound(); });
+      mkButton(resultActions, 'Home', 'home', goHome);
+    } else if (G.mode === 'daily') {
+      mkButton(resultActions, 'Share result', 'play-again', shareDaily);
+      mkButton(resultActions, 'Home', 'home', goHome);
+    } else {
+      mkButton(resultActions, 'Play again', 'play-again', startSolo);
+      mkButton(resultActions, 'Home', 'home', goHome);
+    }
+  }
+
+  /* ---------- daily share (Wordle-style) ---------- */
+  function dailyEmoji(score) {
+    if (score >= 98) return '\u{1F7E9}'; // green
+    if (score >= 90) return '\u{1F7E6}'; // blue
+    if (score >= 80) return '\u{1F7E8}'; // yellow
+    if (score >= 65) return '\u{1F7E7}'; // orange
+    return '\u{1F7E5}';                  // red
+  }
+  async function shareDaily(e) {
+    const rec = readDaily() || { total: G.myScores.reduce((a, b) => a + b, 0), scores: G.myScores };
+    const squares = rec.scores.map(dailyEmoji).join('');
+    const url = location.origin + location.pathname;
+    const text = `ColoGuess Daily #${dailyNumber()}\n${rec.total}/${DAILY_ROUNDS * 100}\n${squares}\n${url}`;
+    try {
+      if (navigator.share) { await navigator.share({ text: text }); return; }
+    } catch (err) { if (err && err.name === 'AbortError') return; }
+    try {
+      await navigator.clipboard.writeText(text);
+      if (e && e.target) { const t = e.target; t.textContent = 'Copied!'; setTimeout(() => { t.textContent = 'Share result'; }, 1500); }
+    } catch (err) {}
   }
 
   function finalizeMp() {
@@ -1193,6 +1314,16 @@
     G.role = null;
     G.seed = Math.floor(Math.random() * 0x7FFFFFFF);
     G.totalRounds = SOLO_ROUNDS;
+    G.round = 0;
+    G.myScores = [];
+    startRound();
+  }
+
+  function startDaily() {
+    G.mode = 'daily';
+    G.role = null;
+    G.seed = dailySeed();
+    G.totalRounds = DAILY_ROUNDS;
     G.round = 0;
     G.myScores = [];
     startRound();
@@ -1311,6 +1442,7 @@
 
   /* ================= UI WIRING ================= */
   document.getElementById('btn-solo').addEventListener('click', startSolo);
+  document.getElementById('btn-daily').addEventListener('click', startDaily);
   document.getElementById('btn-mp').addEventListener('click', showMpName);
   document.getElementById('btn-submit').addEventListener('click', submitGuess);
   document.getElementById('btn-board-home').addEventListener('click', goHome);
@@ -1356,6 +1488,11 @@
     s.addEventListener('input', updateGuess));
   updateGuess();
 
+  // Enter submits the current guess.
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && screens.guess.classList.contains('active')) submitGuess();
+  });
+
   // Tap the reveal screen to stop memorizing early and start guessing.
   showEl.addEventListener('click', () => {
     if (screens.show.classList.contains('active') && countdownId) {
@@ -1378,6 +1515,15 @@
   if (pendingJoin) showMpName();
 
   if ('serviceWorker' in navigator) {
+    // Only the very first load has no controller; on later loads a fresh worker
+    // taking over means new assets are ready. Reload to pick them up, but only
+    // while sitting on the home screen so a game is never interrupted.
+    const hadController = !!navigator.serviceWorker.controller;
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing || !hadController) return;
+      if (screens.start.classList.contains('active')) { refreshing = true; location.reload(); }
+    });
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('sw.js').catch(() => {});
     });
