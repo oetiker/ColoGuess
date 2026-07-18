@@ -49,7 +49,7 @@
     text-align: center;
     padding: 24px;
   }
-  #start, #mpname, #mphost, #mpjoin, #qrshow, #qrscan {
+  #start, #mpname, #mphost, #qrshow, #qrscan {
     background: linear-gradient(135deg, #1a1a2e, #16213e);
   }
   .logo { display: flex; flex-direction: column; align-items: center; margin-bottom: 8px; }
@@ -123,25 +123,6 @@
     text-decoration: underline;
   }
 
-  .seg {
-    display: flex;
-    margin-top: 24px;
-    background: #2a2a3e;
-    border-radius: 999px;
-    padding: 4px;
-    gap: 4px;
-  }
-  .seg button {
-    border: none;
-    background: transparent;
-    color: #aaa;
-    padding: 8px 14px;
-    border-radius: 999px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .seg button.seg-on { background: #fff; color: #111; }
   .seg-label {
     font-size: 0.75rem;
     opacity: 0.55;
@@ -220,21 +201,6 @@
   }
   .status.error { color: #ff6b6b; opacity: 1; }
 
-  .dots { display: flex; gap: 10px; margin: 28px 0; }
-  .dots span {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: #48dbfb;
-    animation: pulse 1.2s infinite ease-in-out;
-  }
-  .dots span:nth-child(2) { animation-delay: 0.2s; }
-  .dots span:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes pulse {
-    0%, 100% { transform: scale(0.6); opacity: 0.3; }
-    50% { transform: scale(1); opacity: 1; }
-  }
-
   /* QR display + scanner */
   #qr-box {
     background: #fff;
@@ -301,6 +267,22 @@
     padding: 8px 16px;
     border-radius: 999px;
     font-size: 0.85rem;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 2;
+  }
+  #show-abort {
+    position: absolute;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+    left: calc(env(safe-area-inset-left, 0px) + 18px);
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.4);
+    color: #fff;
+    font-size: 1.1rem;
+    cursor: pointer;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     z-index: 2;
@@ -390,6 +372,12 @@
   }
   .actions .submit { background: #fff; color: #111; }
   .actions .submit:active { background: #ddd; }
+  .actions .aux {
+    flex: 0 0 52px;
+    background: #2a2a3e;
+    color: #eee;
+  }
+  .actions .aux:active { background: #3a3a4e; }
 
   /* Result screen */
   #result { align-items: center; justify-content: center; padding: 24px; text-align: center; }
@@ -423,7 +411,8 @@
     margin-bottom: 28px;
     line-height: 1.6;
   }
-  #result-actions { display: flex; gap: 12px; }
+  #result-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  #result-actions .wide { flex-basis: 100%; }
   #result-actions button {
     padding: 14px 24px;
     border: none;
@@ -581,16 +570,10 @@
 
   <section id="mpname" class="screen centered">
     <h2 id="mpname-title">Play with friends</h2>
-    <p class="sub" id="mpname-sub">Everyone gets the same colors. Phones share the game over sound or QR codes &mdash; no internet needed.</p>
+    <p class="sub" id="mpname-sub">Everyone gets the same colors. Join with a QR code; results sync by sound at the end &mdash; no internet needed.</p>
     <div class="field">
       <label for="name-input">Your name</label>
       <input type="text" id="name-input" maxlength="10" placeholder="e.g. Alex" autocomplete="off">
-    </div>
-    <div class="seg-label" id="mode-label">How phones connect</div>
-    <div class="seg" id="mode-seg">
-      <button data-v="audible">Audible</button>
-      <button data-v="ultrasound">Ultrasonic</button>
-      <button data-v="qr">QR codes</button>
     </div>
     <button class="primary" id="btn-host">Host a game</button>
     <button class="secondary" id="btn-join">Join a game</button>
@@ -599,7 +582,7 @@
 
   <section id="mphost" class="screen centered">
     <h2>Host a game</h2>
-    <p class="sub" id="host-sub">Set the number of rounds, then share the game with the other players.</p>
+    <p class="sub" id="host-sub">Set the number of rounds, then show the QR code for the other players to scan.</p>
     <div class="stepper-row">
       <span class="s-label">Rounds</span>
       <div class="stepper" data-target="rounds">
@@ -608,17 +591,9 @@
         <button class="step-btn" data-act="inc" aria-label="More rounds">+</button>
       </div>
     </div>
-    <button class="primary" id="btn-broadcast">Share the game</button>
+    <button class="primary" id="btn-broadcast">Create game code</button>
     <div class="status" id="host-status"></div>
     <button class="link-btn" data-home="1">Back</button>
-  </section>
-
-  <section id="mpjoin" class="screen centered">
-    <h2>Joining a game</h2>
-    <div class="dots"><span></span><span></span><span></span></div>
-    <p class="sub">Listening for the host&hellip; keep this phone near the host's phone.</p>
-    <div class="status" id="join-status"></div>
-    <button class="link-btn" data-home="1">Cancel</button>
   </section>
 
   <section id="qrshow" class="screen centered">
@@ -640,6 +615,7 @@
     <div class="label" id="show-label">Memorize</div>
     <div class="timer" id="timer">5</div>
     <div class="hint" id="show-hint">Tap when you&rsquo;ve got it</div>
+    <button id="show-abort" aria-label="Leave game">&#10005;</button>
   </section>
 
   <section id="guess" class="screen">
@@ -665,6 +641,8 @@
         <div class="val" id="lit-val" aria-hidden="true">50</div>
       </div>
       <div class="actions">
+        <button class="aux" id="guess-abort" aria-label="Leave game">&#10005;</button>
+        <button class="aux" id="guess-invite" aria-label="Show join code">QR</button>
         <button class="submit" id="btn-submit">Submit</button>
       </div>
     </div>
@@ -905,26 +883,11 @@
     })(start);
   }
 
-  /* ---------- connection mode setting ---------- */
-  let transferMode = localStorage.getItem('cg-transfer') || 'audible';
-  const modeSeg = document.getElementById('mode-seg');
-  function renderModeSeg() {
-    modeSeg.querySelectorAll('button').forEach(b =>
-      b.classList.toggle('seg-on', b.dataset.v === transferMode));
-  }
-  modeSeg.querySelectorAll('button').forEach(b =>
-    b.addEventListener('click', () => {
-      transferMode = b.dataset.v;
-      localStorage.setItem('cg-transfer', transferMode);
-      renderModeSeg();
-    }));
-  renderModeSeg();
-
   /* ================= AUDIO / ggwave ================= */
   const Sound = {
     ctx: null, ggwave: null, instance: null,
     stream: null, processor: null, micSource: null,
-    listening: false, txActive: false, lastLoudAt: 0,
+    listening: false, txActive: false, lastLoudAt: 0, lastTxEndAt: 0,
   };
 
   function convertTypedArray(src, Type) {
@@ -958,7 +921,9 @@
       const input = e.inputBuffer.getChannelData(0);
       let sum = 0;
       for (let i = 0; i < input.length; i++) sum += input[i] * input[i];
-      if (Math.sqrt(sum / input.length) > 0.02) Sound.lastLoudAt = performance.now();
+      // Low threshold: another phone's ultrasound chirp is faint in RMS terms,
+      // and a false "busy" only delays our own transmission a little.
+      if (Math.sqrt(sum / input.length) > 0.01) Sound.lastLoudAt = performance.now();
       try {
         const res = Sound.ggwave.decode(
           Sound.instance, convertTypedArray(new Float32Array(input), Int8Array));
@@ -985,10 +950,7 @@
   }
 
   function transmit(text) {
-    const protoEnum = Sound.ggwave.ProtocolId;
-    const proto = transferMode === 'ultrasound'
-      ? protoEnum.GGWAVE_PROTOCOL_ULTRASOUND_FAST
-      : protoEnum.GGWAVE_PROTOCOL_AUDIBLE_FAST;
+    const proto = Sound.ggwave.ProtocolId.GGWAVE_PROTOCOL_ULTRASOUND_FAST;
     const waveform = Sound.ggwave.encode(Sound.instance, text, proto, 20);
     const buf = convertTypedArray(waveform, Float32Array);
     const audioBuf = Sound.ctx.createBuffer(1, buf.length, Sound.ctx.sampleRate);
@@ -998,7 +960,11 @@
     src.connect(Sound.ctx.destination);
     Sound.txActive = true;
     return new Promise(resolve => {
-      src.onended = () => { Sound.txActive = false; resolve(); };
+      src.onended = () => {
+        Sound.txActive = false;
+        Sound.lastTxEndAt = performance.now();
+        resolve();
+      };
       src.start();
     });
   }
@@ -1082,13 +1048,13 @@
     seed: 0, gameId: '', totalRounds: 1, round: 0,
     myPid: '', myName: '', myScores: [],
     target: { h: 0, s: 0, l: 0 },
-    waitingForSeed: false,
   };
   let results = {};        // pid -> { name, scores: [] }
   let countdownId = null;
   let broadcasting = false;
   let boardVisible = false;
   let pendingJoin = null;  // { gameId, seed, rounds } from a scanned/opened link
+  let shareStatus = '';    // current result-sharing status line on the board
 
   /* ---------- message encoding ---------- */
   function encodeSeed() {
@@ -1096,9 +1062,6 @@
   }
   function buildJoinUrl() {
     return location.origin + location.pathname + '#join=' + encodeSeed();
-  }
-  function encodeResult() {
-    return ['R', G.gameId, G.myPid, G.myName, G.myScores.join(',')].join('~');
   }
   function encodeGossip() {
     const entries = Object.keys(results).map(pid => {
@@ -1143,34 +1106,84 @@
     return added;
   }
 
-  function handleSoundMessage(text) {
+  // Does this gossip message carry my own (complete) result? If so, another
+  // phone is already relaying it and I can stop transmitting.
+  function gossipIncludesMine(text) {
     const p = text.split('~');
-    if (p[0] === 'S' && p.length === 4) {
-      if (G.role === 'join' && G.waitingForSeed) {
-        const s = parseSeedText(text);
-        if (s) { G.waitingForSeed = false; applySeed(s.gameId, s.seed, s.rounds); }
-      }
-    } else if (p[0] === 'R' && p.length === 5) {
-      if (!G.gameId || p[1] !== G.gameId) return;
-      const scores = p[4].split(',').map(n => parseInt(n, 10)).filter(n => !isNaN(n));
-      if (!scores.length) return;
-      results[p[2]] = { name: p[3] || '?', scores: scores };
-      if (boardVisible) renderBoard();
+    if (p[0] !== 'G' || p.length < 3) return false;
+    const mine = G.myScores.join(',');
+    return p[2].split('|').some(entry => {
+      const f = entry.split(':');
+      return f[0] === G.myPid && f[2] === mine;
+    });
+  }
+
+  // Which player ids does this gossip message carry?
+  function gossipPids(text) {
+    const p = text.split('~');
+    if (p[0] !== 'G' || p.length < 3) return null;
+    return new Set(p[2].split('|').map(e => e.split(':')[0]));
+  }
+
+  let repairPending = false;
+  let lastFullGossipAt = -Infinity;  // last time we heard gossip covering all we know
+
+  function handleSoundMessage(text) {
+    // Ignore what the mic picks up of our own transmission (decode completes
+    // right around the moment playback ends).
+    if (Sound.txActive || performance.now() - Sound.lastTxEndAt < 800) return;
+    Sound.lastLoudAt = performance.now();  // someone is talking — channel busy
+    const p = text.split('~');
+    if (p[0] !== 'G') return;
+    const added = mergeGossip(text);
+    if (added > 0 && boardVisible) renderBoard();
+    if (broadcasting && gossipIncludesMine(text)) {
+      broadcasting = false;
+      setShareStatus('Your result has been relayed — listening for other players…');
+    }
+    // Gossip repair: the sender lacks results we know (e.g. a late finisher who
+    // missed earlier exchanges). Answer once with everything, unless another
+    // phone beats us to it — after the random delay, a recent complete gossip
+    // from anyone means the gap is already filled.
+    const pids = gossipPids(text);
+    if (!pids) return;
+    const missing = Object.keys(results).some(pid => !pids.has(pid));
+    if (!missing) { lastFullGossipAt = performance.now(); return; }
+    if (broadcasting || repairPending) return;  // already talking anyway
+    repairPending = true;
+    (async () => {
+      await sleep(1500 + Math.random() * 3000);
+      const stillNeeded = performance.now() - lastFullGossipAt > 8000;
+      if (stillNeeded && Sound.listening && boardVisible) await sendChirp(encodeGossip());
+      repairPending = false;
+    })();
+  }
+
+  /* ---------- result broadcasting (ultrasound gossip) ---------- */
+  function setShareStatus(text) {
+    shareStatus = text;
+    if (boardVisible) {
+      document.getElementById('board-status').textContent = shareStatus;
     }
   }
 
-  /* ---------- result broadcasting (sound only) ---------- */
   function startBroadcastingResult() {
     if (broadcasting) return;
     broadcasting = true;
+    setShareStatus('Sharing results by sound… keep the phones near each other.');
     (async function loop() {
+      // Random initial stagger so players who finish together don't collide.
+      await sleep(1000 + Math.random() * 3000);
       let n = 0;
       while (broadcasting && n < 40) {
-        await sendChirp(encodeResult());
+        await sendChirp(encodeGossip());
         n++;
         await sleep(9000 + Math.random() * 7000);
       }
-      broadcasting = false;
+      if (broadcasting) {
+        broadcasting = false;
+        setShareStatus('Listening for other players…');
+      }
     })();
   }
 
@@ -1211,6 +1224,8 @@
     satSlider.value = 50;
     litSlider.value = 50;
     updateGuess();
+    document.getElementById('guess-invite').style.display =
+      G.mode === 'mp' ? '' : 'none';
     show('guess');
   }
 
@@ -1281,8 +1296,10 @@
     resultActions.innerHTML = '';
     const lastRound = G.round >= G.totalRounds - 1;
     if (G.mode === 'mp') {
-      if (lastRound) mkButton(resultActions, 'See leaderboard', 'play-again', finalizeMp);
-      else mkButton(resultActions, 'Next round', 'play-again', () => { G.round++; startRound(); });
+      if (lastRound) mkButton(resultActions, 'See leaderboard', 'play-again wide', finalizeMp);
+      else mkButton(resultActions, 'Next round', 'play-again wide', () => { G.round++; startRound(); });
+      mkButton(resultActions, 'Invite players', 'home', () => showInvite('result'));
+      mkButton(resultActions, 'Leave game', 'home', askAbort);
       return;
     }
     // solo + daily: always offer a way Home, plus the forward action.
@@ -1320,10 +1337,19 @@
     } catch (err) {}
   }
 
-  function finalizeMp() {
+  async function finalizeMp() {
     results[G.myPid] = { name: G.myName, scores: G.myScores.slice() };
+    shareStatus = 'Starting sound sharing…';
     showBoard();
-    if (transferMode !== 'qr') startBroadcastingResult();
+    try {
+      await ensureAudio();
+      await startListening();
+    } catch (err) {
+      setShareStatus('Sound sharing unavailable (' + err.message +
+        ') — swap results with the QR buttons above.');
+      return;
+    }
+    startBroadcastingResult();
   }
 
   /* ---------- leaderboard ---------- */
@@ -1360,32 +1386,30 @@
     document.getElementById('board-count').textContent =
       rows.length === 1 ? '1 player' : rows.length + ' players';
 
+    // Results normally arrive by ultrasound on their own; the QR exchange
+    // below is the fallback for phones whose speaker or mic can't do it.
     const actions = document.getElementById('board-actions');
     actions.innerHTML = '';
-    const status = document.getElementById('board-status');
-    if (transferMode === 'qr') {
-      mkButton(actions, 'Show my code', 'secondary', () =>
-        showQr('Your results',
-          encodeGossip(),
-          'Let other players scan this to collect your scores.',
-          'Back to leaderboard',
-          () => showBoard()));
-      mkButton(actions, 'Scan a player', 'secondary', () =>
-        startScan('Scan a player',
-          "Point the camera at another player's results code.",
-          (text) => {
-            const added = mergeGossip(text);
-            const st = document.getElementById('scan-status');
-            if (added > 0) st.textContent = `Added! ${Object.keys(results).length} players collected.`;
-            else if (added === 0) st.textContent = 'Already had that player.';
-            else st.textContent = 'Not a results code for this game.';
-            return false;
-          },
-          'Done', () => showBoard()));
-      status.textContent = 'Scan other players to collect everyone’s results.';
-    } else {
-      status.textContent = 'Listening for other players…';
-    }
+    mkButton(actions, 'Show my results code', 'secondary', () =>
+      showQr('Your results',
+        encodeGossip(),
+        'Let other players scan this to collect your scores.',
+        'Back to leaderboard',
+        () => showBoard()));
+    mkButton(actions, 'Scan a player', 'secondary', () =>
+      startScan('Scan a player',
+        "Point the camera at another player's results code.",
+        (text) => {
+          const added = mergeGossip(text);
+          const st = document.getElementById('scan-status');
+          if (added > 0) st.textContent = `Added! ${Object.keys(results).length} players collected.`;
+          else if (added === 0) st.textContent = 'Already had that player.';
+          else st.textContent = 'Not a results code for this game.';
+          return false;
+        },
+        'Done', () => showBoard()));
+    mkButton(actions, 'Invite players', 'secondary', () => showInvite('board'));
+    document.getElementById('board-status').textContent = shareStatus;
   }
 
   /* ---------- QR display screen ---------- */
@@ -1399,12 +1423,26 @@
     show('qrshow');
   }
 
+  // Join QR available mid-game: any player can re-show it, and a scanner just
+  // starts the same seeded game from round 1 at their own pace.
+  function showInvite(returnTo) {
+    showQr('Join this game',
+      buildJoinUrl(),
+      'Anyone can scan this with their camera or with “Join a game” — even mid-game.',
+      'Back',
+      () => returnTo === 'board' ? showBoard() : show(returnTo));
+  }
+
+  function askAbort() {
+    if (window.confirm('Leave the game and go back to the start screen?')) goHome();
+  }
+
   /* ================= MODE ENTRY POINTS ================= */
   function goHome() {
     if (countdownId) { clearInterval(countdownId); countdownId = null; }
     broadcasting = false;
     boardVisible = false;
-    G.waitingForSeed = false;
+    shareStatus = '';
     stopScan();
     stopAudio();
     show('start');
@@ -1430,7 +1468,7 @@
     startRound();
   }
 
-  async function startHost() {
+  function startHost() {
     const rounds = parseInt(document.getElementById('rounds-val').textContent, 10);
     G.mode = 'mp';
     G.role = 'host';
@@ -1442,36 +1480,14 @@
     G.myScores = [];
     results = {};
 
-    if (transferMode === 'qr') {
-      showQr('Game code',
-        buildJoinUrl(),
-        'Players scan this with any camera, or with “Join a game”. Tap below once everyone has joined.',
-        'Everyone is in — start',
-        () => startRound());
-      return;
-    }
-
-    const status = document.getElementById('host-status');
-    status.className = 'status';
-    status.textContent = 'Starting sound…';
-    try {
-      await ensureAudio();
-      await startListening();
-    } catch (err) {
-      status.className = 'status error';
-      status.textContent = 'Microphone needed to play together: ' + err.message;
-      return;
-    }
-    const msg = encodeSeed();
-    for (let i = 0; i < 3; i++) {
-      status.textContent = `Broadcasting game… (${i + 1}/3)`;
-      await transmit(msg);
-      await sleep(500);
-    }
-    startRound();
+    showQr('Game code',
+      buildJoinUrl(),
+      'Players scan this with any camera, or with “Join a game”. Latecomers can still join during play. Tap below to start.',
+      'Everyone is in — start',
+      () => startRound());
   }
 
-  async function startJoin() {
+  function startJoin() {
     G.mode = 'mp';
     G.role = 'join';
     G.gameId = '';
@@ -1479,32 +1495,14 @@
     G.myScores = [];
     results = {};
 
-    if (transferMode === 'qr') {
-      startScan('Scan the game code',
-        "Point the camera at the host's QR code.",
-        (text) => {
-          const s = parseSeedText(text);
-          if (s) { applySeed(s.gameId, s.seed, s.rounds); return true; }
-          return false;
-        },
-        'Cancel', goHome);
-      return;
-    }
-
-    const status = document.getElementById('join-status');
-    status.className = 'status';
-    status.textContent = 'Starting sound…';
-    show('mpjoin');
-    try {
-      await ensureAudio();
-      await startListening();
-    } catch (err) {
-      status.className = 'status error';
-      status.textContent = 'Microphone needed to play together: ' + err.message;
-      return;
-    }
-    status.textContent = '';
-    G.waitingForSeed = true;
+    startScan('Scan the game code',
+      "Point the camera at the host's QR code.",
+      (text) => {
+        const s = parseSeedText(text);
+        if (s) { applySeed(s.gameId, s.seed, s.rounds); return true; }
+        return false;
+      },
+      'Cancel', goHome);
   }
 
   function joinFromLink(name) {
@@ -1514,7 +1512,6 @@
     G.myPid = randId();
     G.myScores = [];
     results = {};
-    transferMode = 'qr';   // link arrivals collect results by QR
     const j = pendingJoin;
     pendingJoin = null;
     applySeed(j.gameId, j.seed, j.rounds);
@@ -1527,10 +1524,8 @@
       invited ? "You're invited!" : 'Play with friends';
     document.getElementById('mpname-sub').textContent = invited
       ? 'Enter your name to join the game.'
-      : 'Everyone gets the same colors. Phones share the game over sound or QR codes — no internet needed.';
+      : 'Everyone gets the same colors. Join with a QR code; results sync by sound at the end — no internet needed.';
     document.getElementById('btn-host').style.display = invited ? 'none' : '';
-    document.getElementById('mode-label').style.display = invited ? 'none' : '';
-    document.getElementById('mode-seg').style.display = invited ? 'none' : '';
     document.getElementById('btn-join').textContent = invited ? 'Join the game' : 'Join a game';
     document.getElementById('name-input').value = G.myName || '';
     show('mpname');
@@ -1555,11 +1550,6 @@
     if (!name) { document.getElementById('name-input').focus(); return; }
     G.myName = name;
     document.getElementById('host-status').textContent = '';
-    document.getElementById('btn-broadcast').textContent =
-      transferMode === 'qr' ? 'Create game code' : 'Broadcast & start';
-    document.getElementById('host-sub').textContent = transferMode === 'qr'
-      ? 'Set the number of rounds, then show the code for players to scan.'
-      : 'Set the number of rounds, then broadcast. Make sure other phones are listening first.';
     show('mphost');
   });
   document.getElementById('btn-join').addEventListener('click', () => {
@@ -1570,6 +1560,12 @@
     startJoin();
   });
   document.getElementById('btn-broadcast').addEventListener('click', startHost);
+  document.getElementById('guess-abort').addEventListener('click', askAbort);
+  document.getElementById('guess-invite').addEventListener('click', () => showInvite('guess'));
+  document.getElementById('show-abort').addEventListener('click', e => {
+    e.stopPropagation();  // don't also trigger the tap-to-skip-memorizing handler
+    askAbort();
+  });
 
   // steppers
   const stepLimits = { rounds: [1, 10] };
