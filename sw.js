@@ -1,4 +1,4 @@
-const CACHE = 'cologuess-v9';
+const CACHE = 'cologuess-v10';
 const ASSETS = [
   './',
   './index.html',
