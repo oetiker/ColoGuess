@@ -200,6 +200,7 @@
     line-height: 1.4;
   }
   .status.error { color: #ff6b6b; opacity: 1; }
+  .status.ok { color: #6be675; opacity: 1; }
 
   /* QR display + scanner */
   #qr-box {
@@ -227,6 +228,7 @@
     background: #000;
   }
   .scan-frame video { width: 100%; height: 100%; object-fit: cover; }
+  .scan-frame.hit { box-shadow: 0 0 0 4px #2ecc71; }
 
   /* Show color screen */
   #show { align-items: center; justify-content: center; }
@@ -605,7 +607,7 @@
 
   <section id="qrscan" class="screen centered">
     <h2 id="scan-title">Scan</h2>
-    <div class="scan-frame"><video id="scan-video" playsinline muted></video></div>
+    <div class="scan-frame" id="scan-frame"><video id="scan-video" playsinline muted autoplay></video></div>
     <p class="sub" id="scan-hint">Point the camera at the other phone's QR code.</p>
     <div class="status" id="scan-status"></div>
     <button class="secondary" id="scan-done">Done</button>
@@ -991,29 +993,53 @@
     }
   }
 
-  const Scan = { stream: null, raf: null, active: false };
+  const Scan = { stream: null, raf: null, active: false, watchdog: null };
   function stopScan() {
     Scan.active = false;
     if (Scan.raf) cancelAnimationFrame(Scan.raf);
     Scan.raf = null;
+    if (Scan.watchdog) { clearTimeout(Scan.watchdog); Scan.watchdog = null; }
     if (Scan.stream) Scan.stream.getTracks().forEach(t => t.stop());
     Scan.stream = null;
+    const video = document.getElementById('scan-video');
+    if (video) { try { video.pause(); } catch (e) {} video.srcObject = null; }
+    document.getElementById('scan-frame').classList.remove('hit');
   }
-  async function startScan(title, hint, onResult, doneLabel, doneFn) {
+
+  function setScanStatus(text, kind) {
+    const st = document.getElementById('scan-status');
+    st.className = 'status' + (kind ? ' ' + kind : '');
+    st.textContent = text;
+  }
+
+  // Confirm a hit loudly: the camera stays open for more codes, so without
+  // this a successful scan is easy to miss.
+  function flashScanHit() {
+    const frame = document.getElementById('scan-frame');
+    frame.classList.add('hit');
+    setTimeout(() => frame.classList.remove('hit'), 700);
+    if (navigator.vibrate) { try { navigator.vibrate(60); } catch (e) {} }
+  }
+
+  // opts.pauseSound hands the microphone back before opening the camera. iOS
+  // Safari runs one capture at a time: with the ultrasound listener still
+  // holding the mic, the camera stream never delivers a frame and the scanner
+  // sits there doing nothing.
+  async function startScan(title, hint, onResult, doneLabel, doneFn, opts) {
+    const pauseSound = !!(opts && opts.pauseSound);
     document.getElementById('scan-title').textContent = title;
     document.getElementById('scan-hint').textContent = hint;
-    document.getElementById('scan-status').textContent = '';
+    setScanStatus('Starting the camera…');
     const doneBtn = document.getElementById('scan-done');
     doneBtn.textContent = doneLabel;
-    doneBtn.onclick = () => { stopScan(); doneFn(); };
+    doneBtn.onclick = () => { stopScan(); if (pauseSound) resumeSound(); doneFn(); };
     show('qrscan');
+    if (pauseSound && suspendSound()) await sleep(250);
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
     } catch (err) {
-      const st = document.getElementById('scan-status');
-      st.className = 'status error';
-      st.textContent = 'Camera needed to scan: ' + err.message;
+      setScanStatus('Camera needed to scan: ' + err.message, 'error');
       return;
     }
     Scan.stream = stream;
@@ -1021,9 +1047,19 @@
     const video = document.getElementById('scan-video');
     video.srcObject = stream;
     try { await video.play(); } catch (e) {}
+    setScanStatus('Looking for a code…');
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    let frames = 0;
     let last = 0;
+    // A camera that opens but never paints is the classic iOS symptom; say so
+    // instead of showing a black rectangle for ever.
+    Scan.watchdog = setTimeout(() => {
+      if (Scan.active && !frames) {
+        setScanStatus('The camera is not sending a picture. Tap ' + doneLabel +
+          ', close anything else using the camera, and try again.', 'error');
+      }
+    }, 5000);
     function tick(now) {
       if (!Scan.active) return;
       if (video.readyState >= video.HAVE_ENOUGH_DATA && now - last > 150) {
@@ -1031,6 +1067,7 @@
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         if (canvas.width && canvas.height) {
+          frames++;
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const code = jsQR(img.data, img.width, img.height);
@@ -1090,7 +1127,7 @@
     return null;
   }
 
-  function mergeGossip(text) {
+  function mergeGossip(text, addedNames) {
     const p = text.split('~');
     if (p[0] !== 'G' || p.length < 3) return -1;
     if (!G.gameId || p[1] !== G.gameId) return -1;
@@ -1100,7 +1137,7 @@
       if (f.length < 3) return;
       const scores = f[2].split(',').map(n => parseInt(n, 10)).filter(n => !isNaN(n));
       if (!scores.length) return;
-      if (!results[f[0]]) added++;
+      if (!results[f[0]]) { added++; if (addedNames) addedNames.push(f[1] || '?'); }
       results[f[0]] = { name: f[1] || '?', scores: scores };
     });
     return added;
@@ -1160,6 +1197,38 @@
   }
 
   /* ---------- result broadcasting (ultrasound gossip) ---------- */
+  let broadcastGen = 0;      // invalidates a broadcast loop that is still sleeping
+  let soundSuspended = false;
+  let resumeBroadcast = false;
+
+  // Scanning needs the camera, and on iOS that means giving up the microphone.
+  // Returns true if there was anything to pause.
+  function suspendSound() {
+    if (!Sound.listening && !broadcasting) return false;
+    soundSuspended = true;
+    resumeBroadcast = broadcasting;
+    broadcasting = false;
+    broadcastGen++;
+    stopAudio();
+    setShareStatus('Sound sharing paused while the camera is open.');
+    return true;
+  }
+
+  async function resumeSound() {
+    if (!soundSuspended) return;
+    soundSuspended = false;
+    try {
+      await ensureAudio();
+      await startListening();
+    } catch (err) {
+      setShareStatus('Sound sharing unavailable (' + err.message +
+        ') — swap results with the QR buttons above.');
+      return;
+    }
+    if (resumeBroadcast) startBroadcastingResult();
+    else setShareStatus('Listening for other players…');
+  }
+
   function setShareStatus(text) {
     shareStatus = text;
     if (boardVisible) {
@@ -1170,17 +1239,18 @@
   function startBroadcastingResult() {
     if (broadcasting) return;
     broadcasting = true;
+    const gen = ++broadcastGen;
     setShareStatus('Sharing results by sound… keep the phones near each other.');
     (async function loop() {
       // Random initial stagger so players who finish together don't collide.
       await sleep(1000 + Math.random() * 3000);
       let n = 0;
-      while (broadcasting && n < 40) {
+      while (broadcasting && broadcastGen === gen && n < 40) {
         await sendChirp(encodeGossip());
         n++;
         await sleep(9000 + Math.random() * 7000);
       }
-      if (broadcasting) {
+      if (broadcasting && broadcastGen === gen) {
         broadcasting = false;
         setShareStatus('Listening for other players…');
       }
@@ -1393,21 +1463,46 @@
     mkButton(actions, 'Show my results code', 'secondary', () =>
       showQr('Your results',
         encodeGossip(),
-        'Let other players scan this to collect your scores.',
+        'Let another player scan this, then swap so you both have everyone.',
         'Back to leaderboard',
         () => showBoard()));
-    mkButton(actions, 'Scan a player', 'secondary', () =>
+    mkButton(actions, 'Scan a player', 'secondary', () => {
+      // The camera keeps running so several players can be collected in a row.
+      // Remember the codes already read: re-decoding the one still in front of
+      // the lens every frame used to wipe the "Added" message within 150ms and
+      // replace it with "Already had that player", so a successful scan looked
+      // like nothing had happened at all.
+      const seen = new Set();
       startScan('Scan a player',
         "Point the camera at another player's results code.",
         (text) => {
-          const added = mergeGossip(text);
-          const st = document.getElementById('scan-status');
-          if (added > 0) st.textContent = `Added! ${Object.keys(results).length} players collected.`;
-          else if (added === 0) st.textContent = 'Already had that player.';
-          else st.textContent = 'Not a results code for this game.';
+          if (seen.has(text)) return false;
+          seen.add(text);
+          const names = [];
+          const added = mergeGossip(text, names);
+          if (added < 0) {
+            setScanStatus(text.slice(0, 2) === 'G~'
+              ? 'That results code belongs to a different game.'
+              : 'That is not a results code — scan the code from another ' +
+                'player’s “Show my results code”.', 'error');
+            return false;
+          }
+          renderBoard();
+          const total = Object.keys(results).length;
+          const tail = ' Your board now has ' + total +
+            (total === 1 ? ' player.' : ' players.');
+          if (added > 0) {
+            flashScanHit();
+            setScanStatus('Added ' + names.join(', ') + '.' + tail, 'ok');
+          } else {
+            setScanStatus('Already had those results.' + tail);
+          }
           return false;
         },
-        'Done', () => showBoard()));
+        'Back to leaderboard',
+        () => showBoard(),
+        { pauseSound: true });
+    });
     mkButton(actions, 'Invite players', 'secondary', () => showInvite('board'));
     document.getElementById('board-status').textContent = shareStatus;
   }
@@ -1441,6 +1536,9 @@
   function goHome() {
     if (countdownId) { clearInterval(countdownId); countdownId = null; }
     broadcasting = false;
+    broadcastGen++;
+    soundSuspended = false;
+    resumeBroadcast = false;
     boardVisible = false;
     shareStatus = '';
     stopScan();
