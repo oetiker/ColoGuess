@@ -49,7 +49,7 @@
     text-align: center;
     padding: 24px;
   }
-  #start, #mpname, #mphost, #qrshow, #qrscan {
+  #start, #mpname, #mphost, #mpready, #qrshow, #qrscan {
     background: linear-gradient(135deg, #1a1a2e, #16213e);
   }
   .logo { display: flex; flex-direction: column; align-items: center; margin-bottom: 8px; }
@@ -594,13 +594,13 @@
   .sheet h2 { font-size: 1.4rem; margin-bottom: 8px; }
   .sheet .sub { margin: 0 auto 20px; }
   .sheet .link-btn { margin-top: 16px; }
-  .ios-steps {
+  .steps {
     list-style: none;
     text-align: left;
     max-width: 320px;
     margin: 0 auto;
   }
-  .ios-steps li {
+  .steps li {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -611,7 +611,7 @@
     font-size: 0.95rem;
     line-height: 1.35;
   }
-  .ios-steps .num {
+  .steps .num {
     flex: 0 0 24px;
     width: 24px;
     height: 24px;
@@ -679,6 +679,18 @@
     <button class="primary" id="btn-broadcast">Create game code</button>
     <div class="status" id="host-status"></div>
     <button class="link-btn" data-home="1">Back</button>
+  </section>
+
+  <section id="mpready" class="screen centered">
+    <h2>You&rsquo;re in!</h2>
+    <p class="sub" id="ready-sub"></p>
+    <ol class="steps">
+      <li><span class="num">1</span><span>A color fills the screen &mdash; look at it and memorize it.</span></li>
+      <li><span class="num">2</span><span>Recreate it with the hue, saturation and lightness sliders.</span></li>
+      <li><span class="num">3</span><span>Everyone gets the same colors. Scores are compared at the end.</span></li>
+    </ol>
+    <button class="primary" id="btn-ready">Start round 1</button>
+    <button class="link-btn" data-home="1">Leave</button>
   </section>
 
   <section id="qrshow" class="screen centered">
@@ -1260,6 +1272,7 @@
   let broadcasting = false;
   let boardVisible = false;
   let pendingJoin = null;  // { gameId, seed, rounds } from a scanned/opened link
+  let offerInstall = function () {};   // set by the install prompt module below
   let shareStatus = '';    // current result-sharing status line on the board
 
   /* ---------- message encoding ---------- */
@@ -1536,7 +1549,18 @@
     G.totalRounds = Math.max(1, rounds);
     G.round = 0;
     G.myScores = [];
-    startRound();
+    // Scanning a code used to drop the player straight into a five second
+    // countdown on the first color, before they knew the game had started.
+    showReady();
+  }
+
+  // Joiners get a beat to take in what is about to happen. The host already
+  // has this moment on the game-code screen.
+  function showReady() {
+    document.getElementById('ready-sub').textContent =
+      G.totalRounds === 1 ? 'One round. Start when you are ready.'
+        : G.totalRounds + ' rounds. Start when you are ready.';
+    show('mpready');
   }
 
   function startRound() {
@@ -1830,10 +1854,12 @@
     boardVisible = false;
     shareStatus = '';
     Sound.txUnheard = 0;
+    pendingJoin = null;
     hideSoundMeter();
     stopScan();
     stopAudio();
     show('start');
+    offerInstall();
   }
 
   function startSolo() {
@@ -1958,6 +1984,7 @@
     resumeSound();
     showBoard();
   });
+  document.getElementById('btn-ready').addEventListener('click', () => startRound());
   document.getElementById('btn-broadcast').addEventListener('click', startHost);
   document.getElementById('guess-abort').addEventListener('click', askAbort);
   document.getElementById('guess-invite').addEventListener('click', () => showInvite('guess'));
@@ -2031,8 +2058,17 @@
       try { localStorage.setItem('cg-install-dismissed', Date.now()); } catch (e) {}
     }
     function hide() { modal.classList.remove('show'); }
+
+    // Installing navigates away to the manifest's start_url, which carries no
+    // "#join=" fragment — so a player prompted on the way into a game installs
+    // the app and loses the game. Only ever ask while sitting on the start
+    // screen with no invitation waiting.
+    function busy() {
+      return !!pendingJoin || !screens.start.classList.contains('active');
+    }
     function eligible() {
       return !isStandalone
+        && !busy()
         && !localStorage.getItem('cg-installed')
         && !dismissedThisSession
         && !recentlyDismissed();
@@ -2064,7 +2100,7 @@
       } else if (isIOS) {
         textEl.textContent = 'Add ColoGuess to your home screen for full-screen play that works offline.';
         body.innerHTML =
-          '<ol class="ios-steps">' +
+          '<ol class="steps">' +
           `<li><span class="num">1</span><span>Tap the Share button ${shareIcon} in Safari's toolbar.</span></li>` +
           '<li><span class="num">2</span><span>Scroll down and choose <strong>Add to Home Screen</strong>.</span></li>' +
           '</ol>';
@@ -2097,6 +2133,10 @@
       deferredPrompt = null;
       hide();
     });
+
+    // Called when the player lands back on the start screen, so someone who
+    // arrived through a game code is asked once that game is over.
+    offerInstall = function () { setTimeout(maybeShow, 700); };
 
     // iOS never fires beforeinstallprompt; show its instructions shortly after load.
     if (isIOS) setTimeout(maybeShow, 1200);
