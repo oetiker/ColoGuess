@@ -267,13 +267,28 @@
 
   /* Ultrasound activity readout */
   #sound-panel { margin-top: 14px; }
+  /* A button rather than a tappable div, so the debug readout it reveals can
+     be reached by keyboard and announced as a control. */
   .sound-line {
     display: flex;
     align-items: center;
     gap: 8px;
+    width: 100%;
+    text-align: left;
+    appearance: none;
+    -webkit-appearance: none;
+    background: none;
+    border: 0;
+    color: inherit;
+    font: inherit;
     font-size: 0.85rem;
     opacity: 0.85;
     cursor: pointer;
+  }
+  .sound-line:focus-visible {
+    outline: 2px solid #7d7dff;
+    outline-offset: 3px;
+    border-radius: 4px;
   }
   .sound-debug {
     margin-top: 6px;
@@ -782,10 +797,11 @@
     <div id="board-list"></div>
     <div id="board-actions"></div>
     <div id="sound-panel">
-      <div class="sound-line" id="sound-line">
+      <button type="button" class="sound-line" id="sound-line"
+              aria-expanded="false" aria-controls="sound-debug">
         <span class="sound-dot" id="sound-dot"></span>
         <span id="sound-state">Listening for other players…</span>
-      </div>
+      </button>
       <div class="meter" id="meter" aria-hidden="true">
         <div class="meter-fill" id="meter-fill"></div>
         <div class="meter-mark"></div>
@@ -1346,10 +1362,12 @@
   const MAX_CHIRP_BYTES = 96;
 
   // A chunk that is not the sender's full picture carries a trailing '~p', so
-  // receivers don't read the entries it left out as gaps needing repair.
+  // receivers don't read the entries it left out as gaps needing repair. Its
+  // two bytes come out of the budget for every chunk, since whether they get
+  // appended is only known once the split is done.
   function encodeGossipChunks() {
     const entries = gossipEntries();
-    const overhead = ['G', G.gameId, ''].join('~').length;
+    const overhead = ['G', G.gameId, '', 'p'].join('~').length;
     const chunks = [];
     let cur = [];
     entries.forEach(entry => {
@@ -1626,6 +1644,7 @@
   function toggleSoundDebug() {
     soundDebug = !soundDebug;
     document.getElementById('sound-debug').hidden = !soundDebug;
+    document.getElementById('sound-line').setAttribute('aria-expanded', String(soundDebug));
   }
 
   function paintSoundDebug(bands) {
