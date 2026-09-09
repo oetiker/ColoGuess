@@ -1021,10 +1021,10 @@
   // GGWAVE_PROTOCOL_ULTRASOUND_FAST puts its tones between 15 and 19 kHz
   // (measured off an encoded waveform). Only a handful of narrow tones sit up
   // there at any instant, so averaging the whole 4 kHz band buries them: on a
-  // pristine encode the band mean reaches 30 of 255 at the volume we send, and
-  // only 39 at full scale, while the loudest bin is pinned at 255. Judging the
-  // band by its average therefore reads "silence" for a chirp that is coming
-  // through perfectly, so every test below works off the loudest bin instead.
+  // pristine encode at full volume the band mean reaches only 39 of 255 while
+  // the loudest bin is pinned at 255. Judging the band by its average therefore
+  // reads "silence" for a chirp that is coming through perfectly, so every test
+  // below works off the loudest bin instead.
   const TONE_LO = 15000, TONE_HI = 19000;
 
   // How far the loudest bin stands above the band average, in the analyser's
@@ -1130,9 +1130,17 @@
     return !Sound.txActive && (performance.now() - Sound.lastLoudAt) < 700;
   }
 
+  // Full tilt. The tones sit above what almost anyone can hear, so there is no
+  // reason to hold back the way an audible protocol would want: the loudness
+  // buys around 14 dB of range and self-hearing over the 20 this used to send.
+  // ggwave scales to a 0.984 peak at 100, so nothing clips on the way out, and
+  // its tones survive being squared off anyway — a waveform hard-clipped to a
+  // third of full scale still decodes byte-identically.
+  const TX_VOLUME = 100;
+
   function transmit(text) {
     const proto = Sound.ggwave.ProtocolId.GGWAVE_PROTOCOL_ULTRASOUND_FAST;
-    const waveform = Sound.ggwave.encode(Sound.instance, text, proto, 20);
+    const waveform = Sound.ggwave.encode(Sound.instance, text, proto, TX_VOLUME);
     // ggwave hands back nothing if it could not encode; playing an empty buffer
     // throws and would kill the broadcast loop it is running inside.
     if (!waveform || !waveform.length) return Promise.resolve();
