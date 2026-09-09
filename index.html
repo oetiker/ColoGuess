@@ -267,12 +267,36 @@
 
   /* Ultrasound activity readout */
   #sound-panel { margin-top: 14px; }
+  /* A button rather than a tappable div, so the debug readout it reveals can
+     be reached by keyboard and announced as a control. */
   .sound-line {
     display: flex;
     align-items: center;
     gap: 8px;
+    width: 100%;
+    text-align: left;
+    appearance: none;
+    -webkit-appearance: none;
+    background: none;
+    border: 0;
+    color: inherit;
+    font: inherit;
     font-size: 0.85rem;
     opacity: 0.85;
+    cursor: pointer;
+  }
+  .sound-line:focus-visible {
+    outline: 2px solid #7d7dff;
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+  .sound-debug {
+    margin-top: 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.68rem;
+    line-height: 1.5;
+    opacity: 0.55;
+    word-spacing: 0.1em;
   }
   .sound-dot {
     width: 10px;
@@ -773,14 +797,16 @@
     <div id="board-list"></div>
     <div id="board-actions"></div>
     <div id="sound-panel">
-      <div class="sound-line">
+      <button type="button" class="sound-line" id="sound-line"
+              aria-expanded="false" aria-controls="sound-debug">
         <span class="sound-dot" id="sound-dot"></span>
         <span id="sound-state">Listening for other players…</span>
-      </div>
+      </button>
       <div class="meter" id="meter" aria-hidden="true">
         <div class="meter-fill" id="meter-fill"></div>
         <div class="meter-mark"></div>
       </div>
+      <div class="sound-debug" id="sound-debug" hidden></div>
     </div>
     <div id="board-status"></div>
     <button class="primary" id="btn-board-home">Home</button>
@@ -1002,35 +1028,49 @@
     ctx: null, ggwave: null, instance: null,
     stream: null, processor: null, micSource: null, analyser: null, freqData: null,
     listening: false, txActive: false, lastLoudAt: 0, lastTxEndAt: 0,
-    tone: 0, toneDisp: 0, ambient: 0, ambientSeeded: false,
+    toneDisp: 0, ambient: 0, ambientSeeded: false,
     toneRun: 0, toneStartAt: 0, lastToneAt: 0,
     lastDecodeAt: 0, lastDecodeName: '',
-    txPeak: 0, txSamples: 0, txUnheard: 0,
+    txPeak: 0, txTonality: 0, txSamples: 0, txUnheard: 0, txConfirmed: false,
   };
 
   // GGWAVE_PROTOCOL_ULTRASOUND_FAST puts its tones between 15 and 19 kHz
-  // (measured off an encoded waveform). The band just above it carries no
-  // signal, so it makes a decent reading of the room's own high-frequency
-  // noise to compare against.
+  // (measured off an encoded waveform). Only a handful of narrow tones sit up
+  // there at any instant, so averaging the whole 4 kHz band buries them: on a
+  // pristine encode at full volume the band mean reaches only 39 of 255 while
+  // the loudest bin is pinned at 255. Judging the band by its average therefore
+  // reads "silence" for a chirp that is coming through perfectly, so every test
+  // below works off the loudest bin instead.
   const TONE_LO = 15000, TONE_HI = 19000;
-  const REF_LO = 19800, REF_HI = 21500;
 
-  // 0..255 per band, straight off the FFT. Null when we aren't listening.
+  // How far the loudest bin stands above the band average, in the analyser's
+  // own 0..255 units. This is what tells a chirp apart from noise: broadband
+  // sound — a quiet room's hiss, a click, keys jangling — spreads evenly and
+  // measures 30 to 45 however loud it gets, grazing 50 in the odd frame, while
+  // a ggwave chirp holds well past 60 until it is some 30 dB down. Being a
+  // ratio rather than a level, it reads the same in a silent room and a loud
+  // one, which an absolute threshold never could. The receive test below also
+  // wants a run of frames, which those occasional noise spikes never sustain.
+  const TONAL_MARGIN = 50;
+
+  // Loudest bin, band average and the gap between them, straight off the FFT.
+  // Null when we aren't listening.
   function readBands() {
     if (!Sound.analyser || !Sound.ctx) return null;
     const bins = Sound.analyser.frequencyBinCount;
     if (!Sound.freqData || Sound.freqData.length !== bins) Sound.freqData = new Uint8Array(bins);
     Sound.analyser.getByteFrequencyData(Sound.freqData);
     const hzPerBin = (Sound.ctx.sampleRate / 2) / bins;
-    const band = (lo, hi) => {
-      const a = Math.min(bins - 1, Math.round(lo / hzPerBin));
-      const b = Math.min(bins - 1, Math.round(hi / hzPerBin));
-      if (b <= a) return 0;
-      let sum = 0;
-      for (let i = a; i <= b; i++) sum += Sound.freqData[i];
-      return sum / (b - a + 1);
-    };
-    return { tone: band(TONE_LO, TONE_HI), ref: band(REF_LO, REF_HI) };
+    const a = Math.min(bins - 1, Math.round(TONE_LO / hzPerBin));
+    const b = Math.min(bins - 1, Math.round(TONE_HI / hzPerBin));
+    if (b <= a) return null;
+    let sum = 0, peak = 0;
+    for (let i = a; i <= b; i++) {
+      sum += Sound.freqData[i];
+      if (Sound.freqData[i] > peak) peak = Sound.freqData[i];
+    }
+    const mean = sum / (b - a + 1);
+    return { peak: peak, mean: mean, tonality: peak - mean };
   }
 
   function convertTypedArray(src, Type) {
@@ -1061,7 +1101,10 @@
     Sound.micSource = Sound.ctx.createMediaStreamSource(Sound.stream);
     Sound.analyser = Sound.ctx.createAnalyser();
     Sound.analyser.fftSize = 2048;
-    Sound.analyser.smoothingTimeConstant = 0.35;
+    // No smoothing: ggwave hops its tones to different frequencies every frame,
+    // so blending frames together smears the peaks we are looking for into the
+    // average and destroys the very reading the tests depend on.
+    Sound.analyser.smoothingTimeConstant = 0;
     Sound.micSource.connect(Sound.analyser);
     Sound.processor = Sound.ctx.createScriptProcessor(1024, 1, 1);
     Sound.processor.onaudioprocess = (e) => {
@@ -1090,10 +1133,11 @@
     if (Sound.analyser) { try { Sound.analyser.disconnect(); } catch (e) {} }
     if (Sound.stream) Sound.stream.getTracks().forEach(t => t.stop());
     Sound.processor = Sound.micSource = Sound.analyser = Sound.stream = null;
-    Sound.tone = 0;
     Sound.toneDisp = 0;
     Sound.toneRun = 0;
     Sound.toneStartAt = 0;
+    Sound.txPeak = 0;
+    Sound.txTonality = 0;
     Sound.ambientSeeded = false;
     Sound.listening = false;
   }
@@ -1102,9 +1146,20 @@
     return !Sound.txActive && (performance.now() - Sound.lastLoudAt) < 700;
   }
 
+  // Full tilt. The tones sit above what almost anyone can hear, so there is no
+  // reason to hold back the way an audible protocol would want: the loudness
+  // buys around 14 dB of range and self-hearing over the 20 this used to send.
+  // ggwave scales to a 0.984 peak at 100, so nothing clips on the way out, and
+  // its tones survive being squared off anyway — a waveform hard-clipped to a
+  // third of full scale still decodes byte-identically.
+  const TX_VOLUME = 100;
+
   function transmit(text) {
     const proto = Sound.ggwave.ProtocolId.GGWAVE_PROTOCOL_ULTRASOUND_FAST;
-    const waveform = Sound.ggwave.encode(Sound.instance, text, proto, 20);
+    const waveform = Sound.ggwave.encode(Sound.instance, text, proto, TX_VOLUME);
+    // ggwave hands back nothing if it could not encode; playing an empty buffer
+    // throws and would kill the broadcast loop it is running inside.
+    if (!waveform || !waveform.length) return Promise.resolve();
     const buf = convertTypedArray(waveform, Float32Array);
     const audioBuf = Sound.ctx.createBuffer(1, buf.length, Sound.ctx.sampleRate);
     audioBuf.getChannelData(0).set(buf);
@@ -1113,6 +1168,7 @@
     src.connect(Sound.ctx.destination);
     Sound.txActive = true;
     Sound.txPeak = 0;
+    Sound.txTonality = 0;
     Sound.txSamples = 0;
     return new Promise(resolve => {
       src.onended = () => {
@@ -1120,9 +1176,11 @@
         Sound.lastTxEndAt = performance.now();
         // A phone that cannot hear its own chirp is muted, turned down, or has
         // a mic that filters out the band — either way nothing is getting out.
-        // Only count it once the meter has actually been sampling.
+        // Judge it on how tonal the band went while we were playing rather than
+        // on an absolute level: the level depends on the room, the tonality
+        // does not. Only count it once the meter has actually been sampling.
         if (Sound.listening && Sound.analyser && Sound.txSamples > 5) {
-          if (Sound.txPeak < Math.max(38, Sound.ambient + 14)) Sound.txUnheard++;
+          if (Sound.txTonality < TONAL_MARGIN) Sound.txUnheard++;
           else Sound.txUnheard = 0;
         }
         resolve();
@@ -1282,12 +1340,56 @@
   function buildJoinUrl() {
     return location.origin + location.pathname + '#join=' + encodeSeed();
   }
-  function encodeGossip() {
-    const entries = Object.keys(results).map(pid => {
+  function gossipEntries() {
+    return Object.keys(results).map(pid => {
       const r = results[pid];
       return [pid, r.name, r.scores.join(',')].join(':');
     });
-    return ['G', G.gameId, entries.join('|')].join('~');
+  }
+
+  // The whole board in one string. Fine for a QR code, which has room to spare.
+  function encodeGossip() {
+    return ['G', G.gameId, gossipEntries().join('|')].join('~');
+  }
+
+  // Ultrasound is the other story. ggwave truncates anything past 140 bytes
+  // without a word — a four-player board with five rounds each already runs
+  // over — and airtime grows with the payload: 140 bytes takes 9.3 seconds of
+  // chirping, long enough that one moved phone or one passing noise wrecks the
+  // lot. Chunking keeps each chirp inside both limits, and because receivers
+  // merge whatever reaches them, a lost chunk now costs one player's row
+  // instead of the whole exchange.
+  const MAX_CHIRP_BYTES = 96;
+
+  // A chunk that is not the sender's full picture carries a trailing '~p', so
+  // receivers don't read the entries it left out as gaps needing repair. Its
+  // two bytes come out of the budget for every chunk, since whether they get
+  // appended is only known once the split is done.
+  function encodeGossipChunks() {
+    const entries = gossipEntries();
+    const overhead = ['G', G.gameId, '', 'p'].join('~').length;
+    const chunks = [];
+    let cur = [];
+    entries.forEach(entry => {
+      if (cur.length && overhead + cur.join('|').length + 1 + entry.length > MAX_CHIRP_BYTES) {
+        chunks.push(cur);
+        cur = [];
+      }
+      cur.push(entry);
+    });
+    if (cur.length) chunks.push(cur);
+    const tail = chunks.length > 1 ? ['p'] : [];
+    return chunks.map(c => ['G', G.gameId, c.join('|')].concat(tail).join('~'));
+  }
+
+  // One chirp per chunk, back to back. Each waits for a quiet channel of its
+  // own, so another phone can slip a message in between ours.
+  async function sendGossip() {
+    const msgs = encodeGossipChunks();
+    for (let i = 0; i < msgs.length; i++) {
+      if (!Sound.listening) return;
+      await sendChirp(msgs[i]);
+    }
   }
 
   // Accepts a raw "S~..." payload or a full join URL containing "#join=".
@@ -1360,10 +1462,21 @@
     Sound.lastDecodeName = names[0] || '';
     Sound.toneStartAt = 0;
     if (added > 0 && boardVisible) renderBoard();
-    if (broadcasting && gossipIncludesMine(text)) {
-      broadcasting = false;
-      setShareStatus('Your result has been relayed — listening for other players…');
+    if (gossipIncludesMine(text)) {
+      // Someone is repeating our own scores back at us, so our chirps are
+      // audibly reaching other phones. Whatever the self-test made of the
+      // signal, there is nothing to warn about.
+      Sound.txConfirmed = true;
+      Sound.txUnheard = 0;
+      if (broadcasting) {
+        broadcasting = false;
+        setShareStatus('Your result has been relayed — listening for other players…');
+      }
     }
+    // A chunk only ever holds part of the sender's board, so what it leaves out
+    // says nothing about what they are missing. Reading it as a gap would have
+    // every listener answer every chunk of a large board.
+    if (p[3] === 'p') return;
     // Gossip repair: the sender lacks results we know (e.g. a late finisher who
     // missed earlier exchanges). Answer once with everything, unless another
     // phone beats us to it — after the random delay, a recent complete gossip
@@ -1377,7 +1490,7 @@
     (async () => {
       await sleep(1500 + Math.random() * 3000);
       const stillNeeded = performance.now() - lastFullGossipAt > 8000;
-      if (stillNeeded && Sound.listening && boardVisible) await sendChirp(encodeGossip());
+      if (stillNeeded && Sound.listening && boardVisible) await sendGossip();
       repairPending = false;
     })();
   }
@@ -1442,22 +1555,26 @@
     meterRaf = requestAnimationFrame(meterTick);
     const bands = readBands();
     if (bands) {
-      Sound.tone = bands.tone;
       if (Sound.txActive) {
-        Sound.txPeak = Math.max(Sound.txPeak, bands.tone);
+        Sound.txPeak = Math.max(Sound.txPeak, bands.peak);
+        Sound.txTonality = Math.max(Sound.txTonality, bands.tonality);
         Sound.txSamples++;
       } else {
-        // Slow floor estimate of the room's own noise in the band. Seeded from
-        // the first reading, or everything looks loud for the first second.
-        const floor = Math.min(bands.tone, bands.ref + 10);
-        if (!Sound.ambientSeeded) { Sound.ambient = floor; Sound.ambientSeeded = true; }
-        else Sound.ambient += (floor - Sound.ambient) * 0.02;
-        // A chirp runs for well over two seconds, so only sustained energy
-        // counts. A single click or key jangle is broadband and must not latch
-        // the readout into "hearing another phone".
-        if (bands.tone > Sound.ambient + 12 && bands.tone > 30) {
+        // Another phone's chirp: narrow tones standing clear of the room's own
+        // noise. The tonality test is what rejects a click or a key jangle —
+        // those are broadband however loud they are — so a short run of frames
+        // is enough to confirm one, where a level-only test needed a long one.
+        const tone = bands.tonality >= TONAL_MARGIN && bands.peak > Sound.ambient + 12;
+        // Floor estimate of that noise, read off the same loudest bin the tests
+        // use. It follows a quietening room straight down but climbs slowly,
+        // and not at all while a tone is playing: chirps run for seconds, and a
+        // floor that chased one up would end up hiding the tail of it.
+        if (!Sound.ambientSeeded) { Sound.ambient = bands.peak; Sound.ambientSeeded = true; }
+        else if (bands.peak < Sound.ambient) Sound.ambient += (bands.peak - Sound.ambient) * 0.25;
+        else if (!tone) Sound.ambient += (bands.peak - Sound.ambient) * 0.02;
+        if (tone) {
           Sound.toneRun++;
-          if (Sound.toneRun >= 12) {
+          if (Sound.toneRun >= 6) {
             if (!Sound.toneStartAt) Sound.toneStartAt = now;
             Sound.lastToneAt = now;
           }
@@ -1468,7 +1585,7 @@
       }
       // The bar decays rather than tracking each frame, so it stays readable
       // instead of flickering to zero between tones.
-      Sound.toneDisp = Math.max(bands.tone, Sound.toneDisp * 0.88);
+      Sound.toneDisp = Math.max(bands.peak, Sound.toneDisp * 0.88);
     }
     if (now - meterLast < 90) return;
     meterLast = now;
@@ -1479,7 +1596,10 @@
     const dot = document.getElementById('sound-dot');
     const label = document.getElementById('sound-state');
     const fill = document.getElementById('meter-fill');
-    let kind = '', text, level = bands ? Math.min(100, Sound.toneDisp / 1.8) : 0;
+    // Show what stands above the room rather than the raw level, so the bar
+    // reads empty in a quiet room instead of resting wherever its noise sits.
+    let kind = '', text,
+        level = bands ? Math.max(0, Math.min(100, (Sound.toneDisp - Sound.ambient) * 0.7)) : 0;
 
     if (Sound.txActive) {
       kind = 'tx';
@@ -1492,7 +1612,7 @@
     } else if (!Sound.listening) {
       text = 'Sound sharing is off.';
       level = 0;
-    } else if (Sound.txUnheard >= 2) {
+    } else if (Sound.txUnheard >= 3 && !Sound.txConfirmed) {
       kind = 'warn';
       text = 'This phone cannot hear its own signal — take it off silent and ' +
         'turn the volume up, or use the codes above.';
@@ -1508,10 +1628,43 @@
         : 'Listening for other players…';
     }
 
+    if (soundDebug) paintSoundDebug(bands);
     dot.className = 'sound-dot' + (kind ? ' ' + kind : '');
     fill.className = 'meter-fill' + (kind === 'tx' ? ' tx' : kind === 'ok' ? ' ok' : '');
     fill.style.width = level.toFixed(0) + '%';
     if (label.textContent !== text) label.textContent = text;
+  }
+
+  // Tapping the status line reveals the raw numbers the tests above run on.
+  // Nothing in a browser reports how loud another phone is or how much of the
+  // band a microphone actually passes, so when sharing misbehaves on a given
+  // handset these readings are the only way to see which of the two it is.
+  let soundDebug = false;
+
+  function toggleSoundDebug() {
+    soundDebug = !soundDebug;
+    document.getElementById('sound-debug').hidden = !soundDebug;
+    document.getElementById('sound-line').setAttribute('aria-expanded', String(soundDebug));
+  }
+
+  function paintSoundDebug(bands) {
+    const el = document.getElementById('sound-debug');
+    const rate = Sound.ctx ? (Sound.ctx.sampleRate / 1000).toFixed(1) + 'kHz' : '—';
+    // peak/mean are the loudest bin and the average across 15–19 kHz; tonal is
+    // the gap between them, which has to reach "need" to count as a chirp.
+    // "self" is the best tonal/peak our own last transmission managed through
+    // this phone's own microphone, and "missed" how many transmissions in a row
+    // failed that test.
+    el.textContent =
+      rate +
+      ' peak ' + (bands ? Math.round(bands.peak) : '—') +
+      ' mean ' + (bands ? Math.round(bands.mean) : '—') +
+      ' tonal ' + (bands ? Math.round(bands.tonality) : '—') +
+      ' floor ' + Math.round(Sound.ambient) +
+      ' · need ' + TONAL_MARGIN +
+      ' · self ' + Math.round(Sound.txTonality) + '/' + Math.round(Sound.txPeak) +
+      (Sound.txConfirmed ? ' ✓relayed' : '') +
+      ' · missed ' + Sound.txUnheard;
   }
 
   function setShareStatus(text) {
@@ -1531,7 +1684,7 @@
       await sleep(1000 + Math.random() * 3000);
       let n = 0;
       while (broadcasting && broadcastGen === gen && n < 40) {
-        await sendChirp(encodeGossip());
+        await sendGossip();
         n++;
         await sleep(9000 + Math.random() * 7000);
       }
@@ -1705,6 +1858,8 @@
 
   async function finalizeMp() {
     results[G.myPid] = { name: G.myName, scores: G.myScores.slice() };
+    Sound.txUnheard = 0;
+    Sound.txConfirmed = false;
     shareStatus = 'Starting sound sharing…';
     showBoard();
     try {
@@ -1854,6 +2009,7 @@
     boardVisible = false;
     shareStatus = '';
     Sound.txUnheard = 0;
+    Sound.txConfirmed = false;
     pendingJoin = null;
     hideSoundMeter();
     stopScan();
@@ -1956,6 +2112,7 @@
   document.getElementById('btn-mp').addEventListener('click', showMpName);
   document.getElementById('btn-submit').addEventListener('click', submitGuess);
   document.getElementById('btn-board-home').addEventListener('click', goHome);
+  document.getElementById('sound-line').addEventListener('click', toggleSoundDebug);
   document.querySelectorAll('[data-home]').forEach(b =>
     b.addEventListener('click', goHome));
 
