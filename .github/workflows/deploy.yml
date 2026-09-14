@@ -25,6 +25,15 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Stamp the build id
+        # sw.js has to differ from the deployed one or browsers will never look
+        # for new assets, so every deploy gets a unique id whether or not the
+        # service worker itself was touched.
+        run: |
+          BUILD="$(date -u +%Y%m%d)-${GITHUB_SHA::7}"
+          grep -q __BUILD__ sw.js || { echo "no __BUILD__ placeholder in sw.js"; exit 1; }
+          sed -i "s/__BUILD__/$BUILD/g" sw.js index.html
+          echo "build id: $BUILD"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
