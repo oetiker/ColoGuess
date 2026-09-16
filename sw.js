@@ -1,4 +1,10 @@
-const CACHE = 'cologuess-v12';
+// The build id is stamped in by the deploy workflow (see .github/workflows/
+// deploy.yml). It is what makes this file's bytes change on every deploy, and
+// a changed service worker script is the only thing that makes a browser look
+// for new assets -- so never rely on editing it by hand.
+const BUILD = '__BUILD__';
+const CACHE = 'cologuess-' + BUILD;
+
 const ASSETS = [
   './',
   './index.html',
@@ -11,9 +17,14 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())
-  );
+  e.waitUntil(caches.open(CACHE).then(c =>
+    // `cache: 'reload'` keeps the HTTP cache out of it: without it the browser
+    // may hand us the very files we are trying to replace.
+    c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' })))
+  ));
+  // No skipWaiting() here on purpose. A fresh worker waits until the page says
+  // it is at a safe moment (see the SKIP_WAITING message below), so an update
+  // never swaps the assets out from under a game in progress.
 });
 
 self.addEventListener('activate', e => {
@@ -24,15 +35,24 @@ self.addEventListener('activate', e => {
   );
 });
 
+self.addEventListener('message', e => {
+  if (e.data === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
+  const req = e.request;
+  if (req.method !== 'GET') return;
   e.respondWith(
-    caches.match(e.request).then(hit =>
-      hit || fetch(e.request).then(resp => {
-        const copy = resp.clone();
-        caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
+    caches.match(req).then(hit =>
+      hit || fetch(req).then(resp => {
+        // Only keep responses worth replaying offline: a cached 404 or an
+        // opaque error would otherwise outlive the failure that produced it.
+        if (resp.ok && resp.type === 'basic') {
+          const copy = resp.clone();
+          caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+        }
         return resp;
-      }).catch(() => caches.match('./index.html'))
+      }).catch(() => (req.mode === 'navigate' ? caches.match('./index.html') : Promise.reject()))
     )
   );
 });

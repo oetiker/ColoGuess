@@ -123,6 +123,18 @@
     text-decoration: underline;
   }
 
+  .build-tag {
+    position: fixed;
+    bottom: 6px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    color: #4a4a52;
+    pointer-events: none;
+  }
+
   .seg-label {
     font-size: 0.75rem;
     opacity: 0.55;
@@ -675,6 +687,7 @@
     <button class="secondary" id="btn-solo">Solo practice</button>
     <div class="seg-label" id="daily-status" style="display:none;"></div>
     <div class="seg-label" id="solo-best" style="display:none;"></div>
+    <div class="build-tag" id="build-tag" style="display:none;"></div>
   </section>
 
   <section id="mpname" class="screen centered">
@@ -1331,6 +1344,7 @@
   let boardVisible = false;
   let pendingJoin = null;  // { gameId, seed, rounds } from a scanned/opened link
   let offerInstall = function () {};   // set by the install prompt module below
+  let applyPendingUpdate = function () {};   // set by the update module below
   let shareStatus = '';    // current result-sharing status line on the board
 
   /* ---------- message encoding ---------- */
@@ -2015,6 +2029,7 @@
     stopScan();
     stopAudio();
     show('start');
+    applyPendingUpdate();
     offerInstall();
   }
 
@@ -2299,20 +2314,90 @@
     if (isIOS) setTimeout(maybeShow, 1200);
   })();
 
-  if ('serviceWorker' in navigator) {
-    // Only the very first load has no controller; on later loads a fresh worker
-    // taking over means new assets are ready. Reload to pick them up, but only
-    // while sitting on the home screen so a game is never interrupted.
-    const hadController = !!navigator.serviceWorker.controller;
-    let refreshing = false;
+  /* ---------- updates ----------
+     An installed app never reloads on its own: people open it from the home
+     screen and it is resumed from memory for days. So we go looking for new
+     versions ourselves, and swap them in the moment the player is back on the
+     start screen. */
+  (function () {
+    const tag = document.getElementById('build-tag');
+    const BUILD_ID = '__BUILD__';   // stamped by the deploy workflow
+    if (tag && /^[\w.-]+$/.test(BUILD_ID) && BUILD_ID.indexOf('BUILD') === -1) {
+      tag.textContent = BUILD_ID;
+      tag.style.display = '';
+    }
+
+    if (!('serviceWorker' in navigator)) return;
+
+    const CHECK_EVERY = 30 * 60 * 1000;   // background poll while the app is open
+    const MIN_GAP = 5 * 60 * 1000;        // don't re-check on every glance at it
+    let reg = null;
+    let lastCheck = 0;
+    let reloading = false;
+
+    function readyWorker() {
+      // A worker that finished installing while another one is in charge is an
+      // update sitting on the shelf, waiting for us to say go.
+      return reg && reg.waiting && navigator.serviceWorker.controller ? reg.waiting : null;
+    }
+
+    function atSafeMoment() {
+      return screens.start.classList.contains('active') && !pendingJoin;
+    }
+
+    function applyUpdate() {
+      const w = readyWorker();
+      if (!w || reloading) return;
+      reloading = true;
+      w.postMessage('SKIP_WAITING');
+      // If the handover never arrives, stay on the old version rather than
+      // leaving the player looking at a frozen screen.
+      setTimeout(() => { reloading = false; }, 10000);
+    }
+
+    // Called from goHome(): the player just finished with whatever they were
+    // doing, which is the one moment a reload costs them nothing.
+    applyPendingUpdate = function () { if (readyWorker()) setTimeout(applyUpdate, 300); };
+
+    function watch(worker) {
+      if (!worker) return;
+      worker.addEventListener('statechange', () => {
+        if (worker.state === 'installed' && atSafeMoment()) applyUpdate();
+      });
+    }
+
+    function check() {
+      if (!reg) return;
+      const now = Date.now();
+      if (now - lastCheck < MIN_GAP) return;
+      lastCheck = now;
+      reg.update().catch(() => {});
+    }
+
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (refreshing || !hadController) return;
-      if (screens.start.classList.contains('active')) { refreshing = true; location.reload(); }
+      if (reloading) location.reload();
     });
+
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => {
+        reg = r;
+        lastCheck = Date.now();
+        watch(r.installing);
+        r.addEventListener('updatefound', () => watch(r.installing));
+        // An update that finished installing during an earlier visit is
+        // already waiting and will fire no further events of its own.
+        if (readyWorker() && atSafeMoment()) applyUpdate();
+        setInterval(check, CHECK_EVERY);
+      }).catch(() => {});
     });
-  }
+
+    // Resuming the app from the home screen is the usual way people come back
+    // to it, and it fires no load event -- so treat it as a cue to look.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') check();
+    });
+    window.addEventListener('online', check);
+  })();
 })();
 </script>
 </body>
